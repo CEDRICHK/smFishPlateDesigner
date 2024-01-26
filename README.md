@@ -2,7 +2,7 @@
 The `smFishPlateDesigner` package offers a suite of tools for processing and analyzing high-throughput single-molecule fluorescence in situ hybridization (HT-smFish) data. It provides functionalities for creating PCR plate layouts, analyzing TIV dosage data, and more.
 
 #### Installation from GitHub and the Tarball
-You can install the latest version of `smFishPlateDesigner` from GitHub using the source tarball. First, download the tarball (`.tar.gz` file) from the GitHub releases or clone/download the repository. Then install the package using the `install.packages` function in R:
+You can install the latest version of `smFishPlateDesigner` from GitHub using the source tarball. First, download the tarball (`.tar.gz` file) from the GitHub releases. Then install the package using the `install.packages` function in R:
 
 ```r
 # Replace "path/to" with the actual path to the tarball
