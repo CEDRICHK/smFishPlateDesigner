@@ -1,0 +1,66 @@
+---
+title: "smFishPlateDesign"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{smFishPlateDesign}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Introduction
+
+This vignette guides you through the smFishPlateDesigner package, specifically focusing on its integration with the targets package for creating reproducible workflows in high-throughput single-molecule fluorescence in situ hybridization (HT-smFish) experiments.
+
+# Workflow Setup using targets
+
+The smFishPlateDesigner package uses the targets package to manage complex workflows. The _targets.R script at the root of the package defines several targets for processing HT-smFish data.
+
+## Targets Overview
+
+In the _targets.R script, we define several targets, each designed to work with user-supplied Excel files:
+
+1. `pcr_plate_layouts`: This target processes the HT-smFish data to create PCR plate layouts.
+2. `pcr_plate_files`: This target writes the plate layouts to an Excel file located in the `output/` directory.
+3. `pcr2_plate_layouts`: An example of a secondary processing step on the PCR plate layouts.
+4. `export_pcr2`: This target demonstrates how to export the results of the secondary processing step.
+5. `dosage_tiv_data`: Processes dosage-related data using `getDosageTIV()` function.
+6. `export_dosage_tiv`: Exports the `dosage_tiv_data` to an Excel file in the `output/` directory.
+7. `process_fish_data`: Processes FISH-related data (details to be expanded based on the function's specifics).
+8. `export_fish_data`: This target exports the results of `process_fish_data` to an Excel file, with each set of results on separate sheets.
+9. `process_fish_data_without_primers`: Processes a variant of FISH data without considering primers, using `processFishDataWithoutPrimers()`.
+10. `export_fish_data_without_primers`: Similar to `export_fish_data`, this target exports the results from `process_fish_data_without_primers` to an Excel file in the `output/` directory.
+
+Each target represents a step in the data processing pipeline and is designed to be executed in order.
+
+## Running the Workflow
+
+To execute the workflow, ensure that you have an `output/` directory in your project, as some targets save their results to files. Then, run the following command in your R console:
+
+```{r run-targets, eval=FALSE}
+# Before running the `targets` workflow, set the path to your Excel file:
+options(smFishPlateDesigner_excel_path = "path/to/your/excel_file.xlsx")
+
+library(targets)
+tar_make()
+
+# else No action required for the file path - uses the default embedded file
+library(targets)
+tar_make()
+```
+
+This command will execute each target in _targets.R, processing your HT-smFish data step-by-step and saving the results.
+
+# Conclusion
+
+By leveraging the `targets` package, `smFishPlateDesigner` provides a robust and reproducible workflow for HT-smFish data analysis. The modular nature of targets allows for flexible adaptation to different datasets and analytical requirements.
+
+# Additional Resources
+
+For more detailed information on the `targets` package and how to customize your workflow, visit [targets documentation](https://docs.ropensci.org/targets/).
