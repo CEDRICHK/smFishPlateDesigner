@@ -27,18 +27,20 @@ To streamline the analysis process, `smFishPlateDesigner` is designed to work wi
 
 1. **Ensure Prerequisite Packages Are Installed**: Follow the instructions above to install required packages.
 
-2. **Use the `_targets.R` Script**: Instead of using source files directly, incorporate your analysis workflow within a `_targets.R` script. An example of this script can be found in the package's GitHub repository.
+2. **Create an Output Directory**: Ensure you have an `output/` directory in your project, as the package will save some results to files in this directory. 
 
-3. **Configure `tar_option()`**: In your `_targets.R` script, ensure to include the `smFishPlateDesigner` package within the `tar_option()` function to make it available during the execution of targets.
+3. **Use the `_targets.R` Script**: Instead of using source files directly, incorporate your analysis workflow within a `_targets.R` script. An example of this script can be found in the package's GitHub repository.
 
-4. **Set Up Excel File Options**: If using a specific Excel file for your data, configure it as an option within your `_targets.R` script:
+4. **Configure `tar_option()`**: In your `_targets.R` script, ensure to include the `smFishPlateDesigner` package within the `tar_option()` function to make it available during the execution of targets.
+
+5. **Set Up Excel File Options**: If using a specific Excel file for your data, configure it as an option within your `_targets.R` script:
 
    ```r
    options(smFishPlateDesigner_excel_path = "path/to/your/excel_file.xlsx")
    ```
    This allows `smFishPlateDesigner` to access your Excel file during the analysis.
    
-5. **Execute the Workflow**: With your `_targets.R` script configured, run the workflow using the following command in your R console:
+6. **Execute the Workflow**: With your `_targets.R` script configured, run the workflow using the following command in your R console:
 
    ```r
    library(targets)
