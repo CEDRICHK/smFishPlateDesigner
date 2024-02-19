@@ -1,9 +1,12 @@
 library(targets)
 
-# Source the functions and targets definitions
-source("R/functions.R")
+# Set Excel path before running the workflow
+options(smFishPlateDesigner_excel_path = "./data/Probes_final_Oligopool11_with_sets.xlsx")
 
-tar_option_set(packages = c("tidyverse", "magrittr", "xlsx", "readxl"))
+# Source the functions and targets definitions
+# source("R/functions.R")
+
+tar_option_set(packages = c("tidyverse", "magrittr", "xlsx", "readxl", "smFishPlateDesigner"))
 
 user_excel_path <- getOption("smFishPlateDesigner_excel_path", default = NULL)
 
