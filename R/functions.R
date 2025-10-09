@@ -1,3 +1,29 @@
+#' Validate or resolve the path to an Excel workbook
+#'
+#' Normalises the optional user-supplied `file_path` by falling back to the
+#' package demo workbook and checks the file exists.
+#'
+#' @param file_path Path supplied by the caller. May be `NULL`.
+#' @param default Path to the bundled demo workbook.
+#' @return Character scalar with the resolved, readable path.
+#' @keywords internal
+validate_excel_path <- function(file_path,
+                                default = system.file("extdata", "ResultWithComplementSeq_final_file.xlsx",
+                                                      package = "smFishPlateDesigner")) {
+  if (is.null(file_path)) {
+    file_path <- default
+  }
+  if (is.null(file_path) || file_path == "") {
+    stop("No Excel file was provided and no package default could be resolved.")
+  }
+  if (!fs::file_exists(file_path)) {
+    stop("Unable to find the Excel file: ", file_path)
+  }
+  file_path
+}
+
+
+
 #' Create Plate Layout for PCR from User-Provided Excel File
 #'
 #' This function processes PCR data from a user-provided Excel file and organizes the data into
@@ -24,14 +50,7 @@
 #' @importFrom readxl read_excel
 getPCR <- function(file_path=NULL) {
 
-  if (is.null(file_path)) {
-    # Chemin par défaut vers le fichier inclus dans le package
-    file_path <- system.file("extdata", "ResultWithComplementSeq_final_file.xlsx", package = "smFishPlateDesigner")
-  }
-
-  if (!file.exists(file_path)) {
-    stop("The file doesn't exists: ", file_path)
-  }
+  file_path <- validate_excel_path(file_path)
 
   # Read the Excel file at the given file path
   data <- readxl::read_excel(path = file_path)
@@ -123,14 +142,7 @@ getPCR2 <- function(pcr_data) {
 #'
 #' @importFrom readxl read_excel
 processDosageTIV <- function(file_path = NULL) {
-  if (is.null(file_path)) {
-    # Chemin par défaut vers le fichier inclus dans le package
-    file_path <- system.file("extdata", "ResultWithComplementSeq_final_file.xlsx", package = "smFishPlateDesigner")
-  }
-
-  if (!file.exists(file_path)) {
-    stop("The file doesn't exists: ", file_path)
-  }
+  file_path <- validate_excel_path(file_path)
   data <- readxl::read_excel(path = file_path)
 
   # Select features and create a barcode
@@ -222,14 +234,7 @@ processDosageTIV <- function(file_path = NULL) {
 #' each corresponding to a unique set of samples and annotations.
 #' @importFrom readxl read_excel
 processFishData <- function(file_path=NULL) {
-  if (is.null(file_path)) {
-    # Chemin par défaut vers le fichier inclus dans le package
-    file_path <- system.file("extdata", "ResultWithComplementSeq_final_file.xlsx", package = "smFishPlateDesigner")
-  }
-
-  if (!file.exists(file_path)) {
-    stop("The file doesn't exists: ", file_path)
-  }
+  file_path <- validate_excel_path(file_path)
   # Import data file and process
   data <- readxl::read_excel(path = file_path)
 
@@ -373,14 +378,7 @@ processFishData <- function(file_path=NULL) {
 #' a list of plate layouts, each corresponding to a unique set of samples and annotations.
 #' @importFrom readxl read_excel
 processFishDataWithoutPrimers <- function(file_path=NULL) {
-  if (is.null(file_path)) {
-    # Chemin par défaut vers le fichier inclus dans le package
-    file_path <- system.file("extdata", "ResultWithComplementSeq_final_file.xlsx", package = "smFishPlateDesigner")
-  }
-
-  if (!file.exists(file_path)) {
-    stop("The file doesn't exists: ", file_path)
-  }
+  file_path <- validate_excel_path(file_path)
   #data <- read_excel(path = args[5])
   data <- readxl::read_excel(path = file_path)
 
