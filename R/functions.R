@@ -22,6 +22,54 @@ validate_excel_path <- function(file_path,
   file_path
 }
 
+#' Safely read an Excel workbook with an informative error
+#'
+#' Executes `readxl::read_excel()` inside a `tryCatch()` to surface precise
+#' diagnostics when the import fails (missing sheet, corrupt file, etc.).
+#'
+#' @param path Path to the workbook to import.
+#' @param ... Additional arguments passed to `readxl::read_excel()`.
+#' @return A tibble containing the workbook contents.
+#' @keywords internal
+read_excel_safe <- function(path, ...) {
+  tryCatch(
+    readxl::read_excel(path = path, ...),
+    error = function(err) {
+      stop(
+        "Failed to read Excel file '", path, "': ",
+        conditionMessage(err),
+        call. = FALSE
+      )
+    }
+  )
+}
+
+#' Ensure an Excel worksheet exposes the expected columns
+#'
+#' Validates that `data` contains the complete set of `required` column names
+#' before downstream processing continues.
+#'
+#' @param data Data frame or tibble read from the workbook.
+#' @param required Character vector of columns that must be present.
+#' @return Invisibly returns `data` when validation succeeds.
+#' @keywords internal
+validate_required_columns <- function(data, required) {
+  missing <- setdiff(required, colnames(data))
+  if (length(missing) > 0L) {
+    stop(
+      "Missing required columns: ",
+      paste(missing, collapse = ", "),
+      call. = FALSE
+    )
+  }
+  invisible(data)
+}
+
+barcode_columns <- c(
+  "GeneName.y", "BC1ID", "BC1PN", "BC1WP",
+  "BC2ID", "BC2PN", "BC2WP"
+)
+
 
 
 #' Create Plate Layout for PCR from User-Provided Excel File
@@ -53,7 +101,8 @@ getPCR <- function(file_path=NULL) {
   file_path <- validate_excel_path(file_path)
 
   # Read the Excel file at the given file path
-  data <- readxl::read_excel(path = file_path)
+  data <- read_excel_safe(file_path)
+  validate_required_columns(data, barcode_columns)
 
   # Selecting relevant columns for barcode creation
   selected_data <- data %>%
@@ -63,6 +112,8 @@ getPCR <- function(file_path=NULL) {
   barcode <- selected_data %>%
     tidyr::unite(col = BC, c(GeneName.y, BC1ID, BC1PN, BC1WP, BC2ID, BC2PN, BC2WP), sep = "_")
 
+
+  
   # Removing duplicate barcodes
   unique_barcode <- dplyr::distinct(barcode, BC)
 
@@ -143,7 +194,8 @@ getPCR2 <- function(pcr_data) {
 #' @importFrom readxl read_excel
 processDosageTIV <- function(file_path = NULL) {
   file_path <- validate_excel_path(file_path)
-  data <- readxl::read_excel(path = file_path)
+  data <- read_excel_safe(file_path)
+  validate_required_columns(data, barcode_columns)
 
   # Select features and create a barcode
   data <- dplyr::select(data, GeneName.y, BC1ID, BC1PN, BC1WP, BC2ID, BC2PN, BC2WP)
@@ -236,7 +288,8 @@ processDosageTIV <- function(file_path = NULL) {
 processFishData <- function(file_path=NULL) {
   file_path <- validate_excel_path(file_path)
   # Import data file and process
-  data <- readxl::read_excel(path = file_path)
+  data <- read_excel_safe(file_path)
+  validate_required_columns(data, barcode_columns)
 
   # select features
   data %<>% select(GeneName.y, BC1ID, BC1PN, BC1WP, BC2ID, BC2PN, BC2WP)
@@ -380,7 +433,8 @@ processFishData <- function(file_path=NULL) {
 processFishDataWithoutPrimers <- function(file_path=NULL) {
   file_path <- validate_excel_path(file_path)
   #data <- read_excel(path = args[5])
-  data <- readxl::read_excel(path = file_path)
+  data <- read_excel_safe(file_path)
+  validate_required_columns(data, barcode_columns)
 
   # select features
   data %<>% select(GeneName.y, BC1ID, BC1PN, BC1WP, BC2ID, BC2PN, BC2WP)
