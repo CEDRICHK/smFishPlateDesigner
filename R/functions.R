@@ -70,6 +70,33 @@ barcode_columns <- c(
   "BC2ID", "BC2PN", "BC2WP"
 )
 
+#' Flag missing or duplicated barcode identifiers
+#'
+#' Ensures barcode vectors do not contain missing values and surfaces
+#' duplicates so the caller can inspect the input data set.
+#'
+#' @param barcodes Character vector of barcode identifiers.
+#' @param context Short label describing the calling function for diagnostics.
+#' @return Invisibly returns `barcodes` when validation succeeds.
+#' @keywords internal
+validate_barcode_values <- function(barcodes, context) {
+  if (anyNA(barcodes) || any(barcodes == "")) {
+    stop("Detected missing barcode values in ", context, ".", call. = FALSE)
+  }
+
+  duplicates <- unique(barcodes[duplicated(barcodes)])
+  if (length(duplicates) > 0L) {
+    warning(
+      "Detected duplicate barcodes in ", context, ": ",
+      paste(head(duplicates, 10), collapse = ", "),
+      if (length(duplicates) > 10) " …",
+      call. = FALSE
+    )
+  }
+
+  invisible(barcodes)
+}
+
 
 
 #' Create Plate Layout for PCR from User-Provided Excel File
@@ -113,7 +140,9 @@ getPCR <- function(file_path=NULL) {
     tidyr::unite(col = BC, c(GeneName.y, BC1ID, BC1PN, BC1WP, BC2ID, BC2PN, BC2WP), sep = "_")
 
 
-  
+
+  validate_barcode_values(barcode$BC, "getPCR() input")
+
   # Removing duplicate barcodes
   unique_barcode <- dplyr::distinct(barcode, BC)
 
@@ -201,6 +230,8 @@ processDosageTIV <- function(file_path = NULL) {
   data <- dplyr::select(data, GeneName.y, BC1ID, BC1PN, BC1WP, BC2ID, BC2PN, BC2WP)
   barcode <- tidyr::unite(data, col = BC, GeneName.y, BC1ID, BC1PN,
                           BC1WP, BC2ID, BC2PN, BC2WP, sep = "_")
+
+  validate_barcode_values(barcode$BC, "processDosageTIV() input")
 
   # Process barcode and calculate number of plates
   u_barcode <- dplyr::distinct(barcode, BC, .keep_all = TRUE)$BC
@@ -304,6 +335,8 @@ processFishData <- function(file_path=NULL) {
                             BC2PN,
                             BC2WP,
                             sep = "_")
+
+  validate_barcode_values(barcode$BC, "processFishData() input")
 
   # select unique rows
   u_barcode <- unique(barcode)
@@ -442,6 +475,8 @@ processFishDataWithoutPrimers <- function(file_path=NULL) {
   # unite features
   barcode <- data %>% unite(col = BC, GeneName.y, BC1ID, BC1PN,
                             BC1WP, BC2ID, BC2PN, BC2WP, sep = "_")
+
+  validate_barcode_values(barcode$BC, "processFishDataWithoutPrimers() input")
 
   # select unique rows
   u_barcode <- unique(barcode)
