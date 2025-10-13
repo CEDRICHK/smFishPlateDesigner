@@ -117,11 +117,15 @@ validate_barcode_values <- function(barcodes, context) {
 #' @export
 #'
 #' @details
-#' The function reads the user-provided Excel file and selects necessary columns related to the barcode.
-#' It then creates a unified barcode by concatenating these columns with an underscore separator.
-#' After deduplicating barcodes, it calculates the number of plates needed and arranges barcodes into
-#' an 8x12 matrix for each plate. The final list of matrices can be used to guide the setup of PCR plates
-#' in a laboratory setting.
+#' The function reads the user-provided Excel file, verifies that all required
+#' barcode columns are present, and fails fast if any are missing. It then
+#' creates a unified barcode by concatenating these columns with an underscore
+#' separator. If any barcode values are empty or `NA`, the function aborts with
+#' a clear diagnostic, and duplicated barcodes trigger a warning. After
+#' deduplicating barcodes, it calculates the number of plates needed and
+#' arranges barcodes into an 8x12 matrix for each plate. The final list of
+#' matrices can be used to guide the setup of PCR plates in a laboratory
+#' setting.
 #' @importFrom readxl read_excel
 getPCR <- function(file_path=NULL) {
 
@@ -221,6 +225,11 @@ getPCR2 <- function(pcr_data) {
 #' @export
 #'
 #' @importFrom readxl read_excel
+#' @details
+#' Validates the presence of all required barcode columns before processing.
+#' The function aborts if any barcode value is empty or `NA`, and it emits a
+#' warning when duplicate barcodes are encountered. On success, it returns the
+#' annotated plate layouts derived from the cleaned barcode set.
 processDosageTIV <- function(file_path = NULL) {
   file_path <- validate_excel_path(file_path)
   data <- read_excel_safe(file_path)
@@ -312,9 +321,12 @@ processDosageTIV <- function(file_path = NULL) {
 #' @export
 #'
 #' @details
-#' The function reads the specified Excel file, extracting necessary information for barcode creation
-#' and plate layout organization. It then processes this information to output a list of plate layouts,
-#' each corresponding to a unique set of samples and annotations.
+#' The function reads the specified Excel file, ensuring all required barcode
+#' columns are present before proceeding. Barcodes composed from those columns
+#' must be non-empty; otherwise the function aborts with a descriptive error.
+#' Duplicate barcodes are reported via warnings so users can inspect potential
+#' data issues. After validation, the function assembles annotated plate layouts
+#' that match the structure of a standard PCR plate.
 #' @importFrom readxl read_excel
 processFishData <- function(file_path=NULL) {
   file_path <- validate_excel_path(file_path)
@@ -459,9 +471,11 @@ processFishData <- function(file_path=NULL) {
 #' @export
 #'
 #' @details
-#' The function reads the specified Excel file, extracting necessary information for barcode creation
-#' and plate layout organization, excluding primer information. It processes this information to output
-#' a list of plate layouts, each corresponding to a unique set of samples and annotations.
+#' The function reads the specified Excel file and validates that all required
+#' barcode columns are available before primer fields are stripped. Empty or
+#' `NA` barcode values trigger an error, while duplicate barcodes emit a warning
+#' to aid troubleshooting. After validation and optional primer removal, the
+#' function outputs annotated plate layouts aligned with standard PCR plates.
 #' @importFrom readxl read_excel
 processFishDataWithoutPrimers <- function(file_path=NULL) {
   file_path <- validate_excel_path(file_path)
