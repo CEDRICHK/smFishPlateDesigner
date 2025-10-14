@@ -20,9 +20,11 @@ and arranging them into plate layouts with specific annotations. The function is
 where primer information is not required or is pre-processed.
 }
 \details{
-The function reads the specified Excel file, extracting necessary information for barcode creation
-and plate layout organization, excluding primer information. It processes this information to output
-a list of plate layouts, each corresponding to a unique set of samples and annotations.
+The function reads the specified Excel file, validates the expected columns,
+strips primer segments through `prepare_barcode_data(drop_primer_segment = TRUE)`,
+and delegates plate construction to the shared fish configuration used by
+`processFishData()`. The same control markers and `mol96` summary element are
+produced, ensuring behaviour identical to the legacy implementation.
 }
 \examples{
 \dontrun{

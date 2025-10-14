@@ -20,11 +20,10 @@ plate layouts. It assumes each plate has 96 wells and arranges unique barcode se
 into an 8x12 matrix corresponding to the layout of a standard PCR plate.
 }
 \details{
-The function reads the user-provided Excel file and selects necessary columns related to the barcode.
-It then creates a unified barcode by concatenating these columns with an underscore separator.
-After deduplicating barcodes, it calculates the number of plates needed and arranges barcodes into
-an 8x12 matrix for each plate. The final list of matrices can be used to guide the setup of PCR plates
-in a laboratory setting.
+Internally the function delegates to shared helpers that validate the Excel
+schema, create a unique set of barcodes via `prepare_barcode_data()`, then
+assemble a list of 96-well plate layouts with `annotate_plate_set()`. Any
+missing barcode values raise an error while duplicates generate a warning.
 }
 \examples{
 \dontrun{

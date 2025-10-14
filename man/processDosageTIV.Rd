@@ -17,6 +17,13 @@ A data frame containing the processed dosage data.
 This function processes TIV dosage data from an Excel file specified by the user.
 The user must provide the path to their Excel file containing the dosage data.
 }
+\details{
+Uses the shared helper pipeline (`prepare_barcode_data()` +
+`annotate_plate_set()`) to clean the Excel input and construct plate layouts.
+Column 12 is overwritten with the `LADDER` marker, a secondary “bis” workbook
+mirroring the legacy output is appended, and the identifiers from the H12
+well of every plate are returned as the `mol96` element.
+}
 \examples{
 \dontrun{
 file_path <- system.file("extdata", "ResultWithComplementSeq_final_file.xlsx", package = "smFishPlateDesigner")

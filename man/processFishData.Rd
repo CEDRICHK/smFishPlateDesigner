@@ -20,9 +20,13 @@ and arranging them into plate layouts with specific annotations. It is designed 
 perform necessary processing to generate a structured layout for laboratory use.
 }
 \details{
-The function reads the specified Excel file, extracting necessary information for barcode creation
-and plate layout organization. It then processes this information to output a list of plate layouts,
-each corresponding to a unique set of samples and annotations.
+The function reads the specified Excel file and funnels it through the shared
+validation/build pipeline, ultimately delegating to `annotate_plate_set()`
+with the fish-specific layout configuration. The configuration pads the base
+5x10 layout to a full 96-well plate, inserts control markers (`C-FLAP`,
+`C-`, `KIF1C`, `DYNC1H1`), and labels every second plate with its `C-`
+sample identifier in well H9. Duplicate barcodes still trigger warnings while
+missing barcodes abort the processing.
 }
 \examples{
 \dontrun{

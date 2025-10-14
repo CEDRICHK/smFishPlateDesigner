@@ -644,15 +644,10 @@ write_plate_workbook <- function(plates,
 #' @export
 #'
 #' @details
-#' The function reads the user-provided Excel file, verifies that all required
-#' barcode columns are present, and fails fast if any are missing. It then
-#' creates a unified barcode by concatenating these columns with an underscore
-#' separator. If any barcode values are empty or `NA`, the function aborts with
-#' a clear diagnostic, and duplicated barcodes trigger a warning. After
-#' deduplicating barcodes, it calculates the number of plates needed and
-#' arranges barcodes into an 8x12 matrix for each plate. The final list of
-#' matrices can be used to guide the setup of PCR plates in a laboratory
-#' setting.
+#' Internally the function delegates to shared helpers that validate the Excel
+#' schema, create a unique set of barcodes via `prepare_barcode_data()`, then
+#' assemble a list of 96-well plate layouts with `annotate_plate_set()`. Any
+#' missing barcode values raise an error while duplicates generate a warning.
 #' @importFrom readxl read_excel
 getPCR <- function(file_path=NULL) {
 
@@ -735,10 +730,11 @@ getPCR2 <- function(pcr_data) {
 #'
 #' @importFrom readxl read_excel
 #' @details
-#' Validates barcode columns, constructs unique barcodes, and builds plate
-#' layouts via internal helpers. Column 12 is replaced by the `LADDER` marker,
-#' additional summary plates are generated, and the identifiers in well H12 are
-#' returned in the same structure as previous versions.
+#' Uses the shared helper pipeline (`prepare_barcode_data()` +
+#' `annotate_plate_set()`) to clean the Excel input and construct plate layouts.
+#' Column 12 is overwritten with the `LADDER` marker, a secondary “bis” workbook
+#' mirroring the legacy output is appended, and the identifiers from the H12
+#' well of every plate are returned as the `mol96` element.
 processDosageTIV <- function(file_path = NULL) {
   file_path <- validate_excel_path(file_path)
   data <- read_excel_safe(file_path)
@@ -778,12 +774,13 @@ processDosageTIV <- function(file_path = NULL) {
 #' @export
 #'
 #' @details
-#' The function reads the specified Excel file, ensuring all required barcode
-#' columns are present before proceeding. Barcodes composed from those columns
-#' must be non-empty; otherwise the function aborts with a descriptive error.
-#' Duplicate barcodes are reported via warnings so users can inspect potential
-#' data issues. After validation, the function assembles annotated plate layouts
-#' that match the structure of a standard PCR plate.
+#' The function reads the specified Excel file and funnels it through the shared
+#' validation/build pipeline, ultimately delegating to `annotate_plate_set()`
+#' with the fish-specific layout configuration. The configuration pads the base
+#' 5x10 layout to a full 96-well plate, inserts control markers (`C-FLAP`,
+#' `C-`, `KIF1C`, `DYNC1H1`), and labels every second plate with its `C-`
+#' sample identifier in well H9. Duplicate barcodes still trigger warnings while
+#' missing barcodes abort the processing.
 #' @importFrom readxl read_excel
 processFishData <- function(file_path=NULL) {
   file_path <- validate_excel_path(file_path)
@@ -835,11 +832,11 @@ processFishData <- function(file_path=NULL) {
 #' @export
 #'
 #' @details
-#' The function reads the specified Excel file and validates that all required
-#' barcode columns are available before primer fields are stripped. Empty or
-#' `NA` barcode values trigger an error, while duplicate barcodes emit a warning
-#' to aid troubleshooting. After validation and optional primer removal, the
-#' function outputs annotated plate layouts aligned with standard PCR plates.
+#' The function reads the specified Excel file, validates the expected columns,
+#' strips primer segments through `prepare_barcode_data(drop_primer_segment = TRUE)`,
+#' and delegates plate construction to the shared fish configuration used by
+#' `processFishData()`. The same control markers and `mol96` summary element are
+#' produced, ensuring behaviour identical to the legacy implementation.
 #' @importFrom readxl read_excel
 processFishDataWithoutPrimers <- function(file_path=NULL) {
   file_path <- validate_excel_path(file_path)
