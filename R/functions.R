@@ -343,11 +343,19 @@ annotate_plate_set <- function(barcodes, layout_config = list()) {
   )
 
   if (is.function(cfg$postprocess)) {
-    return(cfg$postprocess(
-      layout$plates,
-      layout$chunks,
-      cfg
-    ))
+    args <- list(
+      plates = layout$plates,
+      chunks = layout$chunks,
+      config = cfg
+    )
+    formal_names <- names(formals(cfg$postprocess))
+    if (is.null(formal_names)) {
+      formal_names <- character()
+    }
+    if (!"..." %in% formal_names) {
+      args <- args[intersect(names(args), formal_names)]
+    }
+    return(do.call(cfg$postprocess, args))
   }
 
   layout$plates
@@ -442,11 +450,11 @@ dosage_tiv_layout_config <- function() {
         df
       })
 
-      mol96 <- vapply(
+      mol96 <- unname(vapply(
         chunks,
         function(chunk) as.character(chunk[config$wells_per_plate]),
         character(1)
-      )
+      ))
 
       c(plates_with_ladder, list(mol96), bis)
     }
@@ -497,6 +505,9 @@ fish_layout_config <- function() {
         plate <- plate[order(rownames(plate)), , drop = FALSE]
         rownames(plate) <- final_rows
         plate[] <- lapply(plate, as.character)
+
+        plate[5, 9] <- "C-FLAP"
+        plate[5, 10] <- "C-"
 
         plate[7, kif_col] <- "KIF1C"
         plate[7, dync_col] <- "DYNC1H1"

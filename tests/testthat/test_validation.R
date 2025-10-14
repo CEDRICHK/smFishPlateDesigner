@@ -196,7 +196,7 @@ test_that("dosage_tiv_layout_config postprocess mirrors legacy structure", {
 
   expect_length(result, 3)
   expect_true(all(result[[1]][[cfg$col_labels[cfg$ncol]]] == "LADDER"))
-  expect_identical(result[[2]], sprintf("BC%03d", cfg$wells_per_plate))
+  expect_identical(unname(result[[2]]), sprintf("BC%03d", cfg$wells_per_plate))
   expect_true(all(result[[3]][[cfg$col_labels[cfg$ncol]]] == "LADDER"))
 })
 
