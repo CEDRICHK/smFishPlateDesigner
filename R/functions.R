@@ -258,13 +258,13 @@ build_plate_layouts <- function(barcodes,
                                 nrow = 8,
                                 ncol = 12,
                                 row_labels = LETTERS[seq_len(nrow)],
-                                col_labels = seq_len(ncol),
+                                col_labels = as.character(seq_len(ncol)),
                                 byrow = TRUE,
                                 decorate = NULL,
                                 fill = NA_character_) {
   chunks <- chunk_barcodes(barcodes, wells_per_plate, fill = fill)
 
-  lapply(seq_along(chunks), function(idx) {
+  plates <- lapply(seq_along(chunks), function(idx) {
     build_plate_matrix(
       chunk = chunks[[idx]],
       nrow = nrow,
@@ -276,6 +276,11 @@ build_plate_layouts <- function(barcodes,
       plate_index = idx
     )
   })
+
+  list(
+    plates = plates,
+    chunks = chunks
+  )
 }
 
 #' Assemble and post-process plate layouts according to a configuration
@@ -291,7 +296,7 @@ build_plate_layouts <- function(barcodes,
 #' - `byrow` (logical)
 #' - `decorate` (function `function(plate_df, plate_index)` applied to each plate)
 #' - `fill` (padding value, default `NA_character_`)
-#' - `postprocess` (function `function(plates)` returning the final result)
+#' - `postprocess` (function `function(plates, chunks, config)` returning the final result)
 #' - `controls` (list describing control placement rules)
 #'
 #' The optional `controls` list accepts:
@@ -302,7 +307,7 @@ build_plate_layouts <- function(barcodes,
 #'
 #' @param barcodes Character vector of barcodes.
 #' @param layout_config List describing how plates should be constructed.
-#' @return Result of `postprocess(plates)` when supplied, otherwise the list of plates.
+#' @return Result of `postprocess(plates, chunks, cfg)` when supplied, otherwise the list of plates.
 #' @keywords internal
 annotate_plate_set <- function(barcodes, layout_config = list()) {
   defaults <- list(
@@ -325,7 +330,7 @@ annotate_plate_set <- function(barcodes, layout_config = list()) {
     decorate <- compose_plate_decorator(decorate, cfg$controls)
   }
 
-  plates <- build_plate_layouts(
+  layout <- build_plate_layouts(
     barcodes = barcodes,
     wells_per_plate = cfg$wells_per_plate,
     nrow = cfg$nrow,
@@ -338,10 +343,14 @@ annotate_plate_set <- function(barcodes, layout_config = list()) {
   )
 
   if (is.function(cfg$postprocess)) {
-    return(cfg$postprocess(plates))
+    return(cfg$postprocess(
+      plates = layout$plates,
+      chunks = layout$chunks,
+      config = cfg
+    ))
   }
 
-  plates
+  layout$plates
 }
 #' Combine control placement and decoration for a plate
 #'
@@ -390,6 +399,128 @@ compose_plate_decorator <- function(decorate = NULL, controls = NULL) {
   }
 }
 
+dosage_tiv_layout_config <- function() {
+  list(
+    wells_per_plate = 96,
+    nrow = 8,
+    ncol = 12,
+    row_labels = LETTERS[1:8],
+    col_labels = as.character(seq_len(12)),
+    postprocess = function(plates, chunks, config) {
+      if (!length(plates)) {
+        return(list())
+      }
+
+      last_col <- config$col_labels[config$ncol]
+
+      col12_values <- lapply(
+        plates,
+        function(plate) as.character(plate[[last_col]])
+      )
+
+      plates_with_ladder <- lapply(plates, function(plate) {
+        plate[[last_col]] <- "LADDER"
+        plate
+      })
+
+      padded_col12 <- lapply(col12_values, function(vals) {
+        c(vals, rep(NA_character_, config$wells_per_plate - length(vals)))
+      })
+
+      bis <- lapply(seq_along(padded_col12), function(i) {
+        mat <- matrix(
+          padded_col12[[i]],
+          nrow = config$nrow,
+          ncol = config$ncol,
+          byrow = TRUE
+        )
+        mat[1, 8] <- paste0("C-", i)
+        df <- as.data.frame(mat, stringsAsFactors = FALSE, check.names = FALSE)
+        colnames(df) <- config$col_labels
+        rownames(df) <- config$row_labels
+        df[[last_col]] <- "LADDER"
+        df
+      })
+
+      mol96 <- vapply(
+        chunks,
+        function(chunk) as.character(chunk[config$wells_per_plate]),
+        character(1)
+      )
+
+      c(plates_with_ladder, list(mol96), bis)
+    }
+  )
+}
+
+fish_layout_config <- function() {
+  final_cols <- as.character(seq_len(12))
+  final_rows <- LETTERS[1:8]
+
+  list(
+    wells_per_plate = 48,
+    nrow = 5,
+    ncol = 10,
+    row_labels = LETTERS[2:6],
+    col_labels = as.character(2:11),
+    decorate = function(plate, idx) {
+      plate[5, 9] <- "C-FLAP"
+      plate[5, 10] <- "C-"
+      plate
+    },
+    postprocess = function(plates, chunks, config) {
+      if (!length(plates)) {
+        return(list())
+      }
+
+      kif_col <- 2L
+      dync_col <- 3L
+      mol96 <- character()
+      plates_final <- vector("list", length(plates))
+
+      for (idx in seq_along(plates)) {
+        plate <- plates[[idx]]
+        plate[] <- lapply(plate, as.character)
+
+        plate <- cbind("1" = NA_character_, plate)
+        plate[["12"]] <- NA_character_
+        plate <- plate[, final_cols, drop = FALSE]
+
+        extra <- matrix(
+          NA_character_,
+          nrow = 3,
+          ncol = length(final_cols),
+          dimnames = list(c("A", "G", "H"), final_cols)
+        )
+        plate <- rbind(plate, extra)
+        rownames(plate) <- c(LETTERS[2:6], "A", "G", "H")
+        plate <- plate[order(rownames(plate)), , drop = FALSE]
+        rownames(plate) <- final_rows
+        plate[] <- lapply(plate, as.character)
+
+        plate[7, kif_col] <- "KIF1C"
+        plate[7, dync_col] <- "DYNC1H1"
+
+        kif_col <- kif_col + 1L
+        dync_col <- dync_col + 1L
+        if (kif_col == 11L) {
+          kif_col <- 2L
+          dync_col <- 3L
+        }
+
+        if (idx %% 2 == 0) {
+          mol_value <- plate[6, "9"]
+          mol96 <- c(mol96, mol_value)
+          plate[6, "9"] <- paste0("C-", length(mol96))
+        }
+
+        plates_final[[idx]] <- plate
+      }
+
+      c(plates_final, list(mol96))
+    }
+  )
+}
 
 
 #' Create Plate Layout for PCR from User-Provided Excel File
@@ -501,79 +632,27 @@ getPCR2 <- function(pcr_data) {
 #'
 #' @importFrom readxl read_excel
 #' @details
-#' Validates the presence of all required barcode columns before processing.
-#' The function aborts if any barcode value is empty or `NA`, and it emits a
-#' warning when duplicate barcodes are encountered. On success, it returns the
-#' annotated plate layouts derived from the cleaned barcode set.
+#' Validates barcode columns, constructs unique barcodes, and builds plate
+#' layouts via internal helpers. Column 12 is replaced by the `LADDER` marker,
+#' additional summary plates are generated, and the identifiers in well H12 are
+#' returned in the same structure as previous versions.
 processDosageTIV <- function(file_path = NULL) {
   file_path <- validate_excel_path(file_path)
   data <- read_excel_safe(file_path)
   validate_required_columns(data, barcode_columns)
 
-  # Select features and create a barcode
-  data <- dplyr::select(data, GeneName.y, BC1ID, BC1PN, BC1WP, BC2ID, BC2PN, BC2WP)
-  barcode <- tidyr::unite(data, col = BC, GeneName.y, BC1ID, BC1PN,
-                          BC1WP, BC2ID, BC2PN, BC2WP, sep = "_")
+  barcodes <- prepare_barcode_data(
+    data,
+    columns = barcode_columns,
+    drop_primer_segment = FALSE,
+    unique_only = TRUE,
+    context = "processDosageTIV() input"
+  )
 
-  validate_barcode_values(barcode$BC, "processDosageTIV() input")
-
-  # Process barcode and calculate number of plates
-  u_barcode <- dplyr::distinct(barcode, BC, .keep_all = TRUE)$BC
-  nplate <- ceiling(length(u_barcode) / 96)
-  u_barcode <- append(u_barcode, rep(NA, 96 * nplate - length(u_barcode)))
-
-  # Create and annotate the matrices
-  l_mat <- lapply(seq_len(nplate), function(x) {
-    matrix(u_barcode[((x - 1) * 96 + 1):(x * 96)], nrow = 8, byrow = TRUE)
-  })
-
-  l_matannotated <- lapply(l_mat, function(mat) {
-    df <- as.data.frame(mat)
-    colnames(df) <- 1:12
-    rownames(df) <- LETTERS[1:8]
-    df
-  })
-
-  #get name on position 96 and replace value by "C-1"
-  v <- vector()
-  mol96 <- sapply(l_matannotated, function(x) {
-    v <- append(v, as.character(x[8,12]))
-    return(v)
-  })
-
-  #get names of the column 12 and replace value by "LADDER"
-  v <- vector()
-  col12 <- lapply(l_matannotated, function(x) {
-    v <- append(v, as.character(x[,12]))
-    return(v)
-  })
-
-  col12 <- lapply(col12, function(x) append(x, rep(NA,96 - length(x))))
-
-
-  new_df <- lapply(seq_along(col12), function(x) {
-    mat <- matrix(col12[[x]], nrow = 8, ncol = 12, byrow = TRUE)
-    mat[1,8] <- paste("C-",x,sep = "")
-    df <- as.data.frame(mat)
-    colnames(df) <- 1:12
-    rownames(df) <- LETTERS[1:8]
-    df %<>% mutate("12" = "LADDER")
-    df
-  })
-
-  l_matannotated <- lapply(l_matannotated, function(x) {
-    x %<>% mutate("12" = "LADDER")
-    return(x)
-  })
-
-  # Combine with the control names extracted earlier
-  lctrls <- list(mol96)
-  l_annotated <- c(l_matannotated, lctrls)
-
-  # Append the new "bis" matrices to the list of annotated plates
-  l_annotated <- c(l_annotated, new_df)
-
-  return(l_annotated)
+  annotate_plate_set(
+    barcodes,
+    layout_config = dosage_tiv_layout_config()
+  )
 }
 
 
@@ -609,122 +688,29 @@ processFishData <- function(file_path=NULL) {
   data <- read_excel_safe(file_path)
   validate_required_columns(data, barcode_columns)
 
-  # select features
-  data %<>% select(GeneName.y, BC1ID, BC1PN, BC1WP, BC2ID, BC2PN, BC2WP)
+  barcodes <- prepare_barcode_data(
+    data,
+    columns = barcode_columns,
+    drop_primer_segment = FALSE,
+    unique_only = TRUE,
+    context = "processFishData() input"
+  )
 
-  # unite features
-  barcode <- data %>% unite(col = BC,
-                            GeneName.y,
-                            BC1ID,
-                            BC1PN,
-                            BC1WP,
-                            BC2ID,
-                            BC2PN,
-                            BC2WP,
-                            sep = "_")
-
-  validate_barcode_values(barcode$BC, "processFishData() input")
-
-  # select unique rows
-  u_barcode <- unique(barcode)
-
-  # number of plates
-  nplate <- ceiling(nrow(u_barcode) / 96)
-
-  # replace empty well by NA (last plate)
-  u_barcode <- u_barcode$BC
-  u_barcode <- append(u_barcode, rep(NA, 96 * nplate - length(u_barcode)))
-
-  # create start and stop sequence to fill plate one by one
-  start <- seq(from = 1,
-               to = length(u_barcode),
-               by = 48)
-  stop <- seq(from = 48,
-              to = length(u_barcode),
-              by = 48)
-
-  # create matrix and fill the matrix with the barcode vector per row
-  # ADD C-FLAP and C-
-  l_mat <- lapply(seq_along(stop), function(x) {
-    mat <-
-      matrix(u_barcode[start[x]:stop[x]],
-             nrow = 5,
-             ncol = 10,
-             byrow = TRUE)
-    mat[5, 9] <- "C-FLAP"
-    mat[5, 10] <- "C-"
-    return(mat)
-  })
-
-  # annotate row and column of the matrix
-  l_matannotated <- lapply(l_mat, function(x) {
-    df <- as.data.frame(x)
-    colnames(df) <- 2:11
-    rownames(df) <- LETTERS[2:6]
-    return(df)
-  })
-
-  l_matannotated <- lapply(l_matannotated, function(x) {
-    x %<>% mutate("1" = NA)
-    x %<>% mutate("12" = NA)
-    x %<>% select("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12")
-    rownames(x) <- LETTERS[2:6]
-    x %<>% rbind(rep(NA, 12))
-    x %<>% rbind(rep(NA, 12))
-    x %<>% rbind(rep(NA, 12))
-    rownames(x)[6] <- "A"
-    rownames(x)[7] <- "G"
-    rownames(x)[8] <- "H"
-    x <- x[order(row.names(x)),]
-    return(x)
-  })
-
-  #ADD KIF1C & DYNC1H1
-  i = 2
-  j = 3
-  for (z in seq_along(l_matannotated)) {
-    l_matannotated[[z]] %<>% mutate_all(as.character)
-    rownames(l_matannotated[[z]]) <- LETTERS[1:8]
-    l_matannotated[[z]][7, i] <- "KIF1C"
-    l_matannotated[[z]][7, j] <- "DYNC1H1"
-    i = i + 1
-    j = j + 1
-    if (i == 11) {
-      i = 2
-      j = 3
+  if (length(barcodes)) {
+    nblock96 <- ceiling(length(barcodes) / 96)
+    target_length <- nblock96 * 96
+    if (target_length > length(barcodes)) {
+      barcodes <- c(
+        barcodes,
+        rep(NA_character_, target_length - length(barcodes))
+      )
     }
   }
 
-  # get index for the second plate
-  idx <- seq(from = 2,
-             to = last(seq_along(l_matannotated)),
-             by = 2)
-
-  #get name on position 96 and replace value by "C-1"
-  v <- vector()
-  mol96 <- sapply(seq_along(idx), function(x) {
-    v <- append(v, as.character(l_matannotated[[idx[x]]][6, 9]))
-    return(v)
-  })
-
-  new_l_matannotated <- lapply(seq_along(idx), function(x) {
-    l_matannotated[[idx[x]]] %<>% mutate_all(as.character)
-    l_matannotated[[idx[x]]][6, 9] <- paste("C-", x, sep = "")
-    colnames(l_matannotated[[idx[x]]]) <- 1:12
-    rownames(l_matannotated[[idx[x]]]) <- LETTERS[1:8]
-    return(l_matannotated[[idx[x]]])
-  })
-
-  l_matannotated <- lapply(seq_along(l_matannotated), function(x) {
-    if (x  %in% idx)
-      l_matannotated[[x]] <- new_l_matannotated[[x / 2]]
-    else
-      return(l_matannotated[[x]])
-  })
-
-  lctrls <- list(mol96)
-  l_annotated <- c(l_matannotated, lctrls)
-  return(l_annotated)
+  annotate_plate_set(
+    barcodes,
+    layout_config = fish_layout_config()
+  )
 }
 
 
@@ -758,100 +744,27 @@ processFishDataWithoutPrimers <- function(file_path=NULL) {
   data <- read_excel_safe(file_path)
   validate_required_columns(data, barcode_columns)
 
-  # select features
-  data %<>% select(GeneName.y, BC1ID, BC1PN, BC1WP, BC2ID, BC2PN, BC2WP)
+  barcodes <- prepare_barcode_data(
+    data,
+    columns = barcode_columns,
+    drop_primer_segment = TRUE,
+    unique_only = TRUE,
+    context = "processFishDataWithoutPrimers() input"
+  )
 
-  # unite features
-  barcode <- data %>% unite(col = BC, GeneName.y, BC1ID, BC1PN,
-                            BC1WP, BC2ID, BC2PN, BC2WP, sep = "_")
-
-  validate_barcode_values(barcode$BC, "processFishDataWithoutPrimers() input")
-
-  # select unique rows
-  u_barcode <- unique(barcode)
-
-  # number of plates
-  nplate <- ceiling(nrow(u_barcode)/96)
-
-  # remove primers
-  tmp <- lapply(seq_along(u_barcode$BC), function(i) stringi::stri_split_fixed(u_barcode$BC, "_")[[i]][[1]])
-  tmp <- do.call("rbind", tmp)
-  u_barcode <- as.character(tmp)
-
-  # replace empty well by NA (last plate)
-  u_barcode <- append(u_barcode,rep(NA,96*nplate - length(u_barcode)))
-
-  # create start and stop sequence to fill plate one by one
-  start <- seq(from = 1, to = length(u_barcode), by = 48)
-  stop <- seq(from = 48, to = length(u_barcode), by = 48)
-
-  # create matrix and fill the matrix with the barcode vector per row
-  # ADD C-FLAP and C-
-  l_mat <- lapply(seq_along(stop), function(x) {
-    mat <- matrix(u_barcode[start[x]:stop[x]], nrow = 5, ncol = 10, byrow = TRUE)
-    mat[5,9] <- "C-FLAP"; mat[5,10] <- "C-"
-    return(mat)
-  })
-
-  # annotate row and column of the matrix
-  l_matannotated <- lapply(l_mat, function(x) {
-    df <- as.data.frame(x)
-    colnames(df) <- 2:11
-    rownames(df) <- LETTERS[2:6]
-    return(df)
-  })
-
-  l_matannotated <- lapply(l_matannotated, function(x) {
-    x %<>% mutate("1" = NA)
-    x %<>% mutate("12" = NA)
-    x %<>% select("1","2","3","4","5","6","7","8","9","10","11","12")
-    rownames(x) <- LETTERS[2:6]
-    x %<>% rbind(rep(NA,12))
-    x %<>% rbind(rep(NA,12))
-    x %<>% rbind(rep(NA,12))
-    rownames(x)[6] <- "A"
-    rownames(x)[7] <- "G"
-    rownames(x)[8] <- "H"
-    x <- x[order(row.names(x)), ]
-    return(x)
-  })
-
-  #ADD KIF1C & DYNC1H1
-  i = 2; j = 3
-  for (z in seq_along(l_matannotated)) {
-    l_matannotated[[z]] %<>% mutate_all(as.character)
-    rownames(l_matannotated[[z]]) <- LETTERS[1:8]
-    l_matannotated[[z]][7,i] <- "KIF1C"
-    l_matannotated[[z]][7,j] <- "DYNC1H1"
-    i = i + 1; j = j + 1
-    if (i == 11) {i = 2; j = 3}
+  if (length(barcodes)) {
+    nblock96 <- ceiling(length(barcodes) / 96)
+    target_length <- nblock96 * 96
+    if (target_length > length(barcodes)) {
+      barcodes <- c(
+        barcodes,
+        rep(NA_character_, target_length - length(barcodes))
+      )
+    }
   }
 
-  # get index for the second plate
-  idx <- seq(from = 2, to =last(seq_along(l_matannotated)), by = 2)
-
-  #get name on position 96 and replace value by "C-1"
-  v <- vector()
-  mol96 <- sapply(seq_along(idx), function(x){
-    v <- append(v, as.character(l_matannotated[[idx[x]]][6,9]))
-    return(v)
-  })
-
-  new_l_matannotated <- lapply(seq_along(idx), function(x) {
-    l_matannotated[[idx[x]]] %<>% mutate_all(as.character)
-    l_matannotated[[idx[x]]][6,9] <- paste("C-",x,sep = "")
-    colnames(l_matannotated[[idx[x]]]) <- 1:12
-    rownames(l_matannotated[[idx[x]]]) <- LETTERS[1:8]
-    return(l_matannotated[[idx[x]]])
-  })
-
-  l_matannotated <- lapply(seq_along(l_matannotated), function(x) {
-    if(x  %in% idx)
-      l_matannotated[[x]] <- new_l_matannotated[[x/2]]
-    else return(l_matannotated[[x]])
-  })
-
-  lctrls <- list(mol96)
-  l_annotated <- c(l_matannotated, lctrls)
-  return(l_annotated)
+  annotate_plate_set(
+    barcodes,
+    layout_config = fish_layout_config()
+  )
 }

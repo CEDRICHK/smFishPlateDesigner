@@ -104,7 +104,7 @@ test_that("build_plate_matrix creates plate-shaped data frame", {
 })
 
 test_that("build_plate_layouts wraps chunking and plate creation", {
-  layouts <- smFishPlateDesigner:::build_plate_layouts(
+  layout <- smFishPlateDesigner:::build_plate_layouts(
     barcodes = LETTERS[1:5],
     wells_per_plate = 4,
     nrow = 2,
@@ -114,10 +114,11 @@ test_that("build_plate_layouts wraps chunking and plate creation", {
     fill = "-"
   )
 
-  expect_length(layouts, 2)
-  expect_identical(rownames(layouts[[1]]), c("A", "B"))
-  expect_identical(colnames(layouts[[1]]), c("1", "2"))
-  expect_identical(layouts[[2]][2, 2], "-")
+  expect_length(layout$plates, 2)
+  expect_identical(rownames(layout$plates[[1]]), c("A", "B"))
+  expect_identical(colnames(layout$plates[[1]]), c("1", "2"))
+  expect_identical(layout$plates[[2]][2, 2], "-")
+  expect_length(layout$chunks, 2)
 })
 
 test_that("annotate_plate_set applies decorators and post-processors", {
@@ -172,4 +173,59 @@ test_that("compose_plate_decorator injects fixed controls", {
   decorated <- decorator(plate, 5)
   expect_identical(decorated["A", "1"], "CTRL")
   expect_identical(decorated["A", "2"], "IDX5")
+})
+
+test_that("dosage_tiv_layout_config postprocess mirrors legacy structure", {
+  cfg <- smFishPlateDesigner:::dosage_tiv_layout_config()
+  barcodes <- sprintf("BC%03d", seq_len(cfg$wells_per_plate))
+
+  layout <- smFishPlateDesigner:::build_plate_layouts(
+    barcodes = barcodes,
+    wells_per_plate = cfg$wells_per_plate,
+    nrow = cfg$nrow,
+    ncol = cfg$ncol,
+    row_labels = cfg$row_labels,
+    col_labels = cfg$col_labels
+  )
+
+  result <- cfg$postprocess(
+    plates = layout$plates,
+    chunks = layout$chunks,
+    config = cfg
+  )
+
+  expect_length(result, 3)
+  expect_true(all(result[[1]][[cfg$col_labels[cfg$ncol]]] == "LADDER"))
+  expect_identical(result[[2]], sprintf("BC%03d", cfg$wells_per_plate))
+  expect_true(all(result[[3]][[cfg$col_labels[cfg$ncol]]] == "LADDER"))
+})
+
+test_that("fish_layout_config regenerates annotated plates", {
+  cfg <- smFishPlateDesigner:::fish_layout_config()
+  barcodes <- sprintf("FB%03d", seq_len(96))
+
+  layout <- smFishPlateDesigner:::build_plate_layouts(
+    barcodes = barcodes,
+    wells_per_plate = cfg$wells_per_plate,
+    nrow = cfg$nrow,
+    ncol = cfg$ncol,
+    row_labels = cfg$row_labels,
+    col_labels = cfg$col_labels,
+    decorate = cfg$decorate
+  )
+
+  result <- cfg$postprocess(
+    plates = layout$plates,
+    chunks = layout$chunks,
+    config = cfg
+  )
+
+  expect_length(result, length(layout$plates) + 1)
+  expect_identical(rownames(result[[1]]), LETTERS[1:8])
+  expect_identical(colnames(result[[1]]), as.character(seq_len(12)))
+  expect_identical(result[[1]][7, 2], "KIF1C")
+  expect_identical(result[[1]][7, 3], "DYNC1H1")
+  expect_identical(result[[1]][6, 9], "C-FLAP")
+  expect_identical(result[[1]][6, 10], "C-")
+  expect_length(result[[length(result)]], floor(length(layout$plates) / 2))
 })
