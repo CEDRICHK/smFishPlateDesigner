@@ -16,12 +16,16 @@ with_mocked_excel <- function(fake_data, code) {
   file.create(tmp)
   on.exit(unlink(tmp), add = TRUE)
 
-  testthat::with_mocked_bindings(
-    readxl::read_excel = function(path, ...) fake_data,
-    {
-      code(tmp)
-    }
-  )
+  ns <- asNamespace("smFishPlateDesigner")
+  original <- get("read_excel_safe", envir = ns)
+  unlockBinding("read_excel_safe", ns)
+  assign("read_excel_safe", function(path, ...) fake_data, envir = ns)
+  on.exit({
+    assign("read_excel_safe", original, envir = ns)
+    lockBinding("read_excel_safe", ns)
+  }, add = TRUE)
+
+  code(tmp)
 }
 
 test_that("getPCR generates 96-well plate layouts", {
