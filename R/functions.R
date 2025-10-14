@@ -224,7 +224,11 @@ build_plate_matrix <- function(chunk,
   colnames(plate_matrix) <- col_labels
   rownames(plate_matrix) <- row_labels
 
-  plate_df <- as.data.frame(plate_matrix, stringsAsFactors = FALSE)
+  plate_df <- as.data.frame(
+    plate_matrix,
+    stringsAsFactors = FALSE,
+    check.names = FALSE
+  )
 
   if (!is.null(decorate)) {
     plate_df <- decorate(plate_df, plate_index)

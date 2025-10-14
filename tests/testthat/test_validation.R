@@ -165,7 +165,8 @@ test_that("compose_plate_decorator injects fixed controls", {
     `1` = c("a", "c"),
     `2` = c("b", "d"),
     row.names = c("A", "B"),
-    stringsAsFactors = FALSE
+    stringsAsFactors = FALSE,
+    check.names = FALSE
   )
 
   decorated <- decorator(plate, 5)
