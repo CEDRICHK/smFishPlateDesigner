@@ -109,13 +109,15 @@ validate_barcode_values <- function(barcodes, context) {
 #'   each barcode (used when primers must be removed).
 #' @param unique_only Logical; deduplicate barcodes when `TRUE`.
 #' @param sep Separator used when concatenating the columns.
+#' @param context Label describing the caller for diagnostic messages.
 #' @return Character vector of barcodes.
 #' @keywords internal
 prepare_barcode_data <- function(data,
                                  columns = barcode_columns,
                                  drop_primer_segment = FALSE,
                                  unique_only = TRUE,
-                                 sep = "_") {
+                                 sep = "_",
+                                 context = "prepare_barcode_data()") {
   selected <- dplyr::select(data, dplyr::all_of(columns))
 
   if (anyNA(selected)) {
@@ -141,7 +143,7 @@ prepare_barcode_data <- function(data,
     )
   }
 
-  validate_barcode_values(barcodes, "prepare_barcode_data()")
+  validate_barcode_values(barcodes, context)
 
   if (unique_only) {
     barcodes <- unique(barcodes)
@@ -286,6 +288,13 @@ build_plate_layouts <- function(barcodes,
 #' - `decorate` (function `function(plate_df, plate_index)` applied to each plate)
 #' - `fill` (padding value, default `NA_character_`)
 #' - `postprocess` (function `function(plates)` returning the final result)
+#' - `controls` (list describing control placement rules)
+#'
+#' The optional `controls` list accepts:
+#' - `fixed`: named list whose names are `"ROW,COL"` coordinates (e.g. `"H,12"`)
+#'   mapping to values to set in the corresponding wells.
+#' - `callbacks`: list of functions `function(plate_df, plate_index)` executed
+#'   in order to apply more advanced control logic.
 #'
 #' @param barcodes Character vector of barcodes.
 #' @param layout_config List describing how plates should be constructed.
@@ -301,10 +310,16 @@ annotate_plate_set <- function(barcodes, layout_config = list()) {
     byrow = TRUE,
     decorate = NULL,
     fill = NA_character_,
-    postprocess = NULL
+    postprocess = NULL,
+    controls = NULL
   )
 
   cfg <- utils::modifyList(defaults, layout_config, keep.null = TRUE)
+
+  decorate <- cfg$decorate
+  if (!is.null(cfg$controls)) {
+    decorate <- compose_plate_decorator(decorate, cfg$controls)
+  }
 
   plates <- build_plate_layouts(
     barcodes = barcodes,
@@ -314,7 +329,7 @@ annotate_plate_set <- function(barcodes, layout_config = list()) {
     row_labels = cfg$row_labels,
     col_labels = cfg$col_labels,
     byrow = cfg$byrow,
-    decorate = cfg$decorate,
+    decorate = decorate,
     fill = cfg$fill
   )
 
@@ -323,6 +338,52 @@ annotate_plate_set <- function(barcodes, layout_config = list()) {
   }
 
   plates
+}
+#' Combine control placement and decoration for a plate
+#'
+#' Creates a decorator that first applies fixed control values and callback
+#' functions before delegating to an optional downstream decorator.
+#'
+#' @param decorate Optional base decorator function.
+#' @param controls Optional list describing controls (see `annotate_plate_set()`).
+#' @return A decorator function accepting `(plate_df, plate_index)`.
+#' @keywords internal
+compose_plate_decorator <- function(decorate = NULL, controls = NULL) {
+  fixed_controls <- NULL
+  callbacks <- NULL
+
+  if (!is.null(controls)) {
+    if (!is.null(controls$fixed)) {
+      fixed_controls <- controls$fixed
+    }
+    if (!is.null(controls$callbacks)) {
+      callbacks <- controls$callbacks
+    }
+  }
+
+  function(plate, idx) {
+    if (!is.null(fixed_controls)) {
+      for (coord in names(fixed_controls)) {
+        pieces <- strsplit(coord, ",", fixed = TRUE)[[1]]
+        if (length(pieces) != 2) {
+          stop("Invalid control coordinate: ", coord, call. = FALSE)
+        }
+        plate[pieces[1], pieces[2]] <- fixed_controls[[coord]]
+      }
+    }
+
+    if (is.list(callbacks) && length(callbacks)) {
+      for (fn in callbacks) {
+        plate <- fn(plate, idx)
+      }
+    }
+
+    if (is.function(decorate)) {
+      plate <- decorate(plate, idx)
+    }
+
+    plate
+  }
 }
 
 

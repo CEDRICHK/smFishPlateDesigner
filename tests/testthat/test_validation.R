@@ -149,3 +149,26 @@ test_that("annotate_plate_set applies decorators and post-processors", {
   expect_identical(annotated$first_well, "Plate1")
   expect_identical(rownames(annotated$plates[[1]]), c("A", "B"))
 })
+
+test_that("compose_plate_decorator injects fixed controls", {
+  decorator <- smFishPlateDesigner:::compose_plate_decorator(
+    controls = list(
+      fixed = list("A,1" = "CTRL"),
+      callbacks = list(function(plate, idx) {
+        plate[1, 2] <- paste0("IDX", idx)
+        plate
+      })
+    )
+  )
+
+  plate <- data.frame(
+    `1` = c("a", "c"),
+    `2` = c("b", "d"),
+    row.names = c("A", "B"),
+    stringsAsFactors = FALSE
+  )
+
+  decorated <- decorator(plate, 5)
+  expect_identical(decorated["A", "1"], "CTRL")
+  expect_identical(decorated["A", "2"], "IDX5")
+})
