@@ -189,9 +189,9 @@ test_that("dosage_tiv_layout_config postprocess mirrors legacy structure", {
   )
 
   result <- cfg$postprocess(
-    plates = layout$plates,
-    chunks = layout$chunks,
-    config = cfg
+    layout$plates,
+    layout$chunks,
+    cfg
   )
 
   expect_length(result, 3)
@@ -215,9 +215,9 @@ test_that("fish_layout_config regenerates annotated plates", {
   )
 
   result <- cfg$postprocess(
-    plates = layout$plates,
-    chunks = layout$chunks,
-    config = cfg
+    layout$plates,
+    layout$chunks,
+    cfg
   )
 
   expect_length(result, length(layout$plates) + 1)
@@ -225,7 +225,7 @@ test_that("fish_layout_config regenerates annotated plates", {
   expect_identical(colnames(result[[1]]), as.character(seq_len(12)))
   expect_identical(result[[1]][7, 2], "KIF1C")
   expect_identical(result[[1]][7, 3], "DYNC1H1")
-  expect_identical(result[[1]][6, 9], "C-FLAP")
-  expect_identical(result[[1]][6, 10], "C-")
+  expect_identical(result[[1]][5, 9], "C-FLAP")
+  expect_identical(result[[1]][5, 10], "C-")
   expect_length(result[[length(result)]], floor(length(layout$plates) / 2))
 })

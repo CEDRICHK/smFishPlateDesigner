@@ -344,9 +344,9 @@ annotate_plate_set <- function(barcodes, layout_config = list()) {
 
   if (is.function(cfg$postprocess)) {
     return(cfg$postprocess(
-      plates = layout$plates,
-      chunks = layout$chunks,
-      config = cfg
+      layout$plates,
+      layout$chunks,
+      cfg
     ))
   }
 
