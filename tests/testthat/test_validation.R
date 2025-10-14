@@ -57,3 +57,95 @@ test_that("validate_barcode_values warns about duplicates", {
   )
   expect_identical(out, c("A_B", "A_B", "C_D"))
 })
+
+test_that("prepare_barcode_data builds unique, validated barcodes", {
+  raw <- data.frame(
+    GeneName.y = c("GENE1", "GENE2"),
+    BC1ID = c("B1", "B2"),
+    BC1PN = c("P1", "P2"),
+    BC1WP = c("W1", "W2"),
+    BC2ID = c("B3", "B4"),
+    BC2PN = c("P3", "P4"),
+    BC2WP = c("W3", "W4"),
+    stringsAsFactors = FALSE
+  )
+
+  result <- smFishPlateDesigner:::prepare_barcode_data(raw)
+  expect_length(result, 2)
+  expect_true(all(grepl("GENE", result)))
+
+  # Drop primer segments reduces to first element only
+  result_primer <- smFishPlateDesigner:::prepare_barcode_data(
+    raw,
+    drop_primer_segment = TRUE
+  )
+  expect_identical(result_primer, c("GENE1", "GENE2"))
+})
+
+test_that("chunk_barcodes splits and pads as expected", {
+  chunks <- smFishPlateDesigner:::chunk_barcodes(letters[1:5], wells_per_plate = 3, fill = "x")
+  expect_length(chunks, 2)
+  expect_identical(chunks[[1]], c("a", "b", "c"))
+  expect_identical(chunks[[2]], c("d", "e", "x"))
+})
+
+test_that("build_plate_matrix creates plate-shaped data frame", {
+  plate <- smFishPlateDesigner:::build_plate_matrix(
+    chunk = LETTERS[1:6],
+    nrow = 2,
+    ncol = 3,
+    row_labels = c("R1", "R2"),
+    col_labels = c("C1", "C2", "C3")
+  )
+
+  expect_s3_class(plate, "data.frame")
+  expect_identical(rownames(plate), c("R1", "R2"))
+  expect_identical(colnames(plate), c("C1", "C2", "C3"))
+})
+
+test_that("build_plate_layouts wraps chunking and plate creation", {
+  layouts <- smFishPlateDesigner:::build_plate_layouts(
+    barcodes = LETTERS[1:5],
+    wells_per_plate = 4,
+    nrow = 2,
+    ncol = 2,
+    row_labels = c("A", "B"),
+    col_labels = c("1", "2"),
+    fill = "-"
+  )
+
+  expect_length(layouts, 2)
+  expect_identical(rownames(layouts[[1]]), c("A", "B"))
+  expect_identical(colnames(layouts[[1]]), c("1", "2"))
+  expect_identical(layouts[[2]][2, 2], "-")
+})
+
+test_that("annotate_plate_set applies decorators and post-processors", {
+  cfg <- list(
+    wells_per_plate = 4,
+    nrow = 2,
+    ncol = 2,
+    row_labels = c("A", "B"),
+    col_labels = c("1", "2"),
+    fill = "-",
+    decorate = function(plate, idx) {
+      plate[1, 1] <- paste0("Plate", idx)
+      plate
+    },
+    postprocess = function(plates) {
+      list(
+        plates = plates,
+        first_well = plates[[1]][1, 1]
+      )
+    }
+  )
+
+  annotated <- smFishPlateDesigner:::annotate_plate_set(
+    barcodes = LETTERS[1:5],
+    layout_config = cfg
+  )
+
+  expect_named(annotated, c("plates", "first_well"))
+  expect_identical(annotated$first_well, "Plate1")
+  expect_identical(rownames(annotated$plates[[1]]), c("A", "B"))
+})

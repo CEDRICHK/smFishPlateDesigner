@@ -97,6 +97,234 @@ validate_barcode_values <- function(barcodes, context) {
   invisible(barcodes)
 }
 
+#' Prepare a vector of barcodes from a raw data frame
+#'
+#' Selects the expected columns, concatenates them with an underscore, and
+#' optionally strips primer information before returning a (optionally unique)
+#' character vector of barcodes.
+#'
+#' @param data Data frame read from the Excel workbook.
+#' @param columns Character vector of columns to concatenate.
+#' @param drop_primer_segment Logical; if `TRUE`, keep only the first segment of
+#'   each barcode (used when primers must be removed).
+#' @param unique_only Logical; deduplicate barcodes when `TRUE`.
+#' @param sep Separator used when concatenating the columns.
+#' @return Character vector of barcodes.
+#' @keywords internal
+prepare_barcode_data <- function(data,
+                                 columns = barcode_columns,
+                                 drop_primer_segment = FALSE,
+                                 unique_only = TRUE,
+                                 sep = "_") {
+  selected <- dplyr::select(data, dplyr::all_of(columns))
+
+  if (anyNA(selected)) {
+    stop("Detected missing values in barcode source columns.", call. = FALSE)
+  }
+
+  barcode_tbl <- tidyr::unite(
+    selected,
+    col = "BC",
+    dplyr::everything(),
+    sep = sep,
+    remove = FALSE
+  )
+
+  barcodes <- barcode_tbl$BC
+
+  if (drop_primer_segment) {
+    barcodes <- vapply(
+      strsplit(barcodes, sep, fixed = TRUE),
+      `[`,
+      FUN.VALUE = character(1),
+      1
+    )
+  }
+
+  validate_barcode_values(barcodes, "prepare_barcode_data()")
+
+  if (unique_only) {
+    barcodes <- unique(barcodes)
+  }
+
+  barcodes
+}
+
+#' Split a barcode vector into plate-sized chunks
+#'
+#' Pads the barcode vector to a multiple of `wells_per_plate` and splits it into
+#' a list of equal-length vectors, each representing a plate.
+#'
+#' @param barcodes Character vector of barcodes.
+#' @param wells_per_plate Number of wells on a plate.
+#' @param fill Value used to pad incomplete plates.
+#' @return List of barcode vectors, one per plate.
+#' @keywords internal
+chunk_barcodes <- function(barcodes,
+                           wells_per_plate = 96,
+                           fill = NA_character_) {
+  if (!length(barcodes)) {
+    return(list())
+  }
+
+  if (!is.numeric(wells_per_plate) || wells_per_plate <= 0) {
+    stop("`wells_per_plate` must be a positive integer.", call. = FALSE)
+  }
+
+  barcodes <- as.character(barcodes)
+  n_plate <- ceiling(length(barcodes) / wells_per_plate)
+  total <- n_plate * wells_per_plate
+  if (total > length(barcodes)) {
+    barcodes <- c(barcodes, rep(fill, total - length(barcodes)))
+  }
+
+  split(barcodes, rep(seq_len(n_plate), each = wells_per_plate))
+}
+
+#' Convert a barcode chunk into a plate data frame
+#'
+#' Turns a character vector into a plate-shaped data frame with optional row and
+#' column labels and an optional decoration function that can alter the plate
+#' content (for control wells, etc.).
+#'
+#' @param chunk Character vector representing the barcodes for a single plate.
+#' @param nrow Number of rows of the plate.
+#' @param ncol Number of columns of the plate.
+#' @param row_labels Optional row names.
+#' @param col_labels Optional column names.
+#' @param byrow Logical; fill the matrix by row when `TRUE`.
+#' @param decorate Optional function called with `(plate_df, plate_index)` to
+#'   modify the plate after creation.
+#' @param plate_index Index of the plate (passed to `decorate`).
+#' @return Data frame shaped like the plate.
+#' @keywords internal
+build_plate_matrix <- function(chunk,
+                               nrow,
+                               ncol,
+                               row_labels = LETTERS[seq_len(nrow)],
+                               col_labels = seq_len(ncol),
+                               byrow = TRUE,
+                               decorate = NULL,
+                               plate_index = 1) {
+  expected <- nrow * ncol
+  if (length(chunk) < expected) {
+    chunk <- c(chunk, rep(NA_character_, expected - length(chunk)))
+  } else if (length(chunk) > expected) {
+    stop(
+      "Chunk length does not match expected plate size (",
+      expected,
+      ").",
+      call. = FALSE
+    )
+  }
+
+  plate_matrix <- matrix(chunk, nrow = nrow, ncol = ncol, byrow = byrow)
+  colnames(plate_matrix) <- col_labels
+  rownames(plate_matrix) <- row_labels
+
+  plate_df <- as.data.frame(plate_matrix, stringsAsFactors = FALSE)
+
+  if (!is.null(decorate)) {
+    plate_df <- decorate(plate_df, plate_index)
+  }
+
+  plate_df
+}
+
+#' Build plate layouts from a barcode vector
+#'
+#' Convenience wrapper that chunks the barcode vector and converts each chunk
+#' into a plate-shaped data frame, optionally decorating each plate.
+#'
+#' @param barcodes Character vector of barcodes.
+#' @param wells_per_plate Number of wells per plate.
+#' @param nrow Number of rows in the plate.
+#' @param ncol Number of columns in the plate.
+#' @param row_labels Optional row names.
+#' @param col_labels Optional column names.
+#' @param byrow Logical; fill the matrix by row when `TRUE`.
+#' @param decorate Optional function applied to each plate.
+#' @param fill Padding value for incomplete plates.
+#' @return List of plate data frames.
+#' @keywords internal
+build_plate_layouts <- function(barcodes,
+                                wells_per_plate = 96,
+                                nrow = 8,
+                                ncol = 12,
+                                row_labels = LETTERS[seq_len(nrow)],
+                                col_labels = seq_len(ncol),
+                                byrow = TRUE,
+                                decorate = NULL,
+                                fill = NA_character_) {
+  chunks <- chunk_barcodes(barcodes, wells_per_plate, fill = fill)
+
+  lapply(seq_along(chunks), function(idx) {
+    build_plate_matrix(
+      chunk = chunks[[idx]],
+      nrow = nrow,
+      ncol = ncol,
+      row_labels = row_labels,
+      col_labels = col_labels,
+      byrow = byrow,
+      decorate = decorate,
+      plate_index = idx
+    )
+  })
+}
+
+#' Assemble and post-process plate layouts according to a configuration
+#'
+#' Serves as a high-level orchestrator that builds plate layouts from a barcode
+#' vector and applies optional decoration/post-processing steps defined in a
+#' configuration list.
+#'
+#' Expected elements in `layout_config`:
+#' - `wells_per_plate` (numeric, default 96)
+#' - `nrow`, `ncol` (numeric, default 8x12)
+#' - `row_labels`, `col_labels` (character vectors)
+#' - `byrow` (logical)
+#' - `decorate` (function `function(plate_df, plate_index)` applied to each plate)
+#' - `fill` (padding value, default `NA_character_`)
+#' - `postprocess` (function `function(plates)` returning the final result)
+#'
+#' @param barcodes Character vector of barcodes.
+#' @param layout_config List describing how plates should be constructed.
+#' @return Result of `postprocess(plates)` when supplied, otherwise the list of plates.
+#' @keywords internal
+annotate_plate_set <- function(barcodes, layout_config = list()) {
+  defaults <- list(
+    wells_per_plate = 96,
+    nrow = 8,
+    ncol = 12,
+    row_labels = LETTERS[1:8],
+    col_labels = as.character(seq_len(12)),
+    byrow = TRUE,
+    decorate = NULL,
+    fill = NA_character_,
+    postprocess = NULL
+  )
+
+  cfg <- utils::modifyList(defaults, layout_config, keep.null = TRUE)
+
+  plates <- build_plate_layouts(
+    barcodes = barcodes,
+    wells_per_plate = cfg$wells_per_plate,
+    nrow = cfg$nrow,
+    ncol = cfg$ncol,
+    row_labels = cfg$row_labels,
+    col_labels = cfg$col_labels,
+    byrow = cfg$byrow,
+    decorate = cfg$decorate,
+    fill = cfg$fill
+  )
+
+  if (is.function(cfg$postprocess)) {
+    return(cfg$postprocess(plates))
+  }
+
+  plates
+}
+
 
 
 #' Create Plate Layout for PCR from User-Provided Excel File
