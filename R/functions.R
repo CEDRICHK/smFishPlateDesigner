@@ -428,42 +428,24 @@ getPCR <- function(file_path=NULL) {
   data <- read_excel_safe(file_path)
   validate_required_columns(data, barcode_columns)
 
-  # Selecting relevant columns for barcode creation
-  selected_data <- data %>%
-    dplyr::select(GeneName.y, BC1ID, BC1PN, BC1WP, BC2ID, BC2PN, BC2WP)
+  barcodes <- prepare_barcode_data(
+    data,
+    columns = barcode_columns,
+    drop_primer_segment = FALSE,
+    unique_only = TRUE,
+    context = "getPCR() input"
+  )
 
-  # Creating a unified barcode by concatenating selected columns with an underscore
-  barcode <- selected_data %>%
-    tidyr::unite(col = BC, c(GeneName.y, BC1ID, BC1PN, BC1WP, BC2ID, BC2PN, BC2WP), sep = "_")
-
-
-
-  validate_barcode_values(barcode$BC, "getPCR() input")
-
-  # Removing duplicate barcodes
-  unique_barcode <- dplyr::distinct(barcode, BC)
-
-  # Calculating the number of 96-well plates needed based on the number of unique barcodes
-  n_plate <- ceiling(nrow(unique_barcode) / 96)
-
-  # Ensuring the number of barcodes fits into the 96-well plate format by adding empty wells if necessary
-  barcode_vector <- c(unique_barcode$BC, rep(NA, 96 * n_plate - nrow(unique_barcode)))
-
-  # Creating a list of matrices, each representing a PCR plate
-  plates <- lapply(seq_len(n_plate), function(i) {
-    plate_matrix <- matrix(
-      barcode_vector[(((i - 1) * 96) + 1):(i * 96)],
+  annotate_plate_set(
+    barcodes,
+    layout_config = list(
+      wells_per_plate = 96,
       nrow = 8,
       ncol = 12,
-      byrow = TRUE
+      row_labels = LETTERS[1:8],
+      col_labels = as.character(seq_len(12))
     )
-    # Annotating the plate matrix with row (A-H) and column (1-12) labels
-    colnames(plate_matrix) <- 1:12
-    rownames(plate_matrix) <- LETTERS[1:8]
-    as.data.frame(plate_matrix) # Converting matrix to a data frame for better readability
-  })
-
-  return(plates)
+  )
 }
 
 #' Further Process PCR Data and Annotate Plate Matrices
