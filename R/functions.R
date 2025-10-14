@@ -456,7 +456,7 @@ dosage_tiv_layout_config <- function() {
         character(1)
       ))
 
-      c(plates_with_ladder, list(mol96), bis)
+      c(plates_with_ladder, list(mol96 = mol96), bis)
     }
   )
 }
@@ -506,8 +506,8 @@ fish_layout_config <- function() {
         rownames(plate) <- final_rows
         plate[] <- lapply(plate, as.character)
 
-        plate[5, 9] <- "C-FLAP"
-        plate[5, 10] <- "C-"
+        plate["F", "9"] <- "C-FLAP"
+        plate["F", "10"] <- "C-"
 
         plate[7, kif_col] <- "KIF1C"
         plate[7, dync_col] <- "DYNC1H1"
@@ -528,9 +528,101 @@ fish_layout_config <- function() {
         plates_final[[idx]] <- plate
       }
 
-      c(plates_final, list(mol96))
+      c(plates_final, list(mol96 = mol96))
     }
   )
+}
+
+#' Write a list of plates to an Excel workbook
+#'
+#' Serializes a list of tabular objects (plate layouts) into an Excel workbook,
+#' one sheet per plate. Pure vectors are coerced into one-column data frames
+#' using the sheet name (when available) as the column name.
+#'
+#' @param plates List of plate layouts (data frames, matrices, or vectors).
+#' @param path Destination file path for the workbook.
+#' @param prefix Prefix used to generate sheet names when none are provided.
+#' @param sheet_namer Optional callback `function(plate, index)` returning the
+#'   sheet name for each plate.
+#' @return The `path` of the created workbook.
+#' @export
+write_plate_workbook <- function(plates,
+                                 path,
+                                 prefix = "Plate_",
+                                 sheet_namer = NULL) {
+  if (length(plates) == 0L) {
+    stop("No plates supplied for export.", call. = FALSE)
+  }
+
+  dir_path <- dirname(path)
+  if (!identical(dir_path, ".") && !fs::dir_exists(dir_path)) {
+    fs::dir_create(dir_path, recurse = TRUE)
+  }
+
+  if (fs::file_exists(path)) {
+    fs::file_delete(path)
+  }
+
+  sheet_counter <- 0L
+  plate_names <- names(plates)
+
+  for (idx in seq_along(plates)) {
+    plate <- plates[[idx]]
+    if (is.null(plate)) {
+      next
+    }
+
+    if (is.vector(plate) && !is.list(plate)) {
+      column_name <- plate_names[idx]
+      if (is.null(column_name) || !nzchar(column_name)) {
+        column_name <- "value"
+      }
+      plate <- data.frame(
+        value = unname(plate),
+        stringsAsFactors = FALSE,
+        check.names = FALSE
+      )
+      colnames(plate) <- column_name
+    }
+
+    if (is.matrix(plate)) {
+      plate <- as.data.frame(plate, stringsAsFactors = FALSE, check.names = FALSE)
+    }
+
+    if (!is.data.frame(plate)) {
+      next
+    }
+
+    sheet_counter <- sheet_counter + 1L
+
+    sheet_name <- if (!is.null(sheet_namer)) {
+      sheet_namer(plate, idx)
+    } else {
+      candidate <- plate_names[idx]
+      if (!is.null(candidate) && nzchar(candidate)){
+        candidate
+      } else {
+        paste0(prefix, sheet_counter)
+      }
+    }
+
+    if (is.null(sheet_name) || !nzchar(sheet_name)) {
+      sheet_name <- paste0(prefix, sheet_counter)
+    }
+
+    write.xlsx(
+      plate,
+      file = path,
+      sheetName = sheet_name,
+      append = sheet_counter > 1L
+    )
+  }
+
+  if (sheet_counter == 0L) {
+    stop("No tabular data found to export.", call. = FALSE)
+  }
+
+  path
 }
 
 

@@ -195,6 +195,7 @@ test_that("dosage_tiv_layout_config postprocess mirrors legacy structure", {
   )
 
   expect_length(result, 3)
+  expect_identical(names(result)[2], "mol96")
   expect_true(all(result[[1]][[cfg$col_labels[cfg$ncol]]] == "LADDER"))
   expect_identical(unname(result[[2]]), sprintf("BC%03d", cfg$wells_per_plate))
   expect_true(all(result[[3]][[cfg$col_labels[cfg$ncol]]] == "LADDER"))
@@ -221,11 +222,12 @@ test_that("fish_layout_config regenerates annotated plates", {
   )
 
   expect_length(result, length(layout$plates) + 1)
+  expect_identical(names(result)[length(result)], "mol96")
   expect_identical(rownames(result[[1]]), LETTERS[1:8])
   expect_identical(colnames(result[[1]]), as.character(seq_len(12)))
   expect_identical(result[[1]][7, 2], "KIF1C")
   expect_identical(result[[1]][7, 3], "DYNC1H1")
-  expect_identical(result[[1]][5, 9], "C-FLAP")
-  expect_identical(result[[1]][5, 10], "C-")
+  expect_identical(result[[1]]["F", "9"], "C-FLAP")
+  expect_identical(result[[1]]["F", "10"], "C-")
   expect_length(result[[length(result)]], floor(length(layout$plates) / 2))
 })
