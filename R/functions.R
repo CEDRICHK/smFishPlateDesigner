@@ -65,6 +65,11 @@ validate_required_columns <- function(data, required) {
   invisible(data)
 }
 
+#' Default set of columns used to construct barcodes
+#'
+#' Shared helper constant listing the Excel columns that are concatenated to
+#' form the unique barcode identifiers across the package.
+#' @keywords internal
 barcode_columns <- c(
   "GeneName.y", "BC1ID", "BC1PN", "BC1WP",
   "BC2ID", "BC2PN", "BC2WP"
@@ -89,7 +94,7 @@ validate_barcode_values <- function(barcodes, context) {
     warning(
       "Detected duplicate barcodes in ", context, ": ",
       paste(head(duplicates, 10), collapse = ", "),
-      if (length(duplicates) > 10) " …",
+      if (length(duplicates) > 10) " ...",
       call. = FALSE
     )
   }
@@ -407,6 +412,12 @@ compose_plate_decorator <- function(decorate = NULL, controls = NULL) {
   }
 }
 
+#' Layout configuration for dosage TIV plate exports
+#'
+#' Provides the parameters and post-processing logic required to build dosage
+#' TIV plate layouts using `annotate_plate_set()`.
+#' @return A list describing the layout configuration.
+#' @keywords internal
 dosage_tiv_layout_config <- function() {
   list(
     wells_per_plate = 96,
@@ -461,6 +472,12 @@ dosage_tiv_layout_config <- function() {
   )
 }
 
+#' Layout configuration for fish plate exports
+#'
+#' Supplies the parameters and post-processing rules used by the fish workflows
+#' (`processFishData()` and `processFishDataWithoutPrimers()`).
+#' @return A list describing the layout configuration.
+#' @keywords internal
 fish_layout_config <- function() {
   final_cols <- as.character(seq_len(12))
   final_rows <- LETTERS[1:8]
@@ -732,7 +749,7 @@ getPCR2 <- function(pcr_data) {
 #' @details
 #' Uses the shared helper pipeline (`prepare_barcode_data()` +
 #' `annotate_plate_set()`) to clean the Excel input and construct plate layouts.
-#' Column 12 is overwritten with the `LADDER` marker, a secondary “bis” workbook
+#' Column 12 is overwritten with the `LADDER` marker, a secondary "bis" workbook
 #' mirroring the legacy output is appended, and the identifiers from the H12
 #' well of every plate are returned as the `mol96` element.
 processDosageTIV <- function(file_path = NULL) {
