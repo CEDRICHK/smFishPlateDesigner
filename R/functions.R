@@ -523,8 +523,10 @@ fish_layout_config <- function() {
         rownames(plate) <- final_rows
         plate[] <- lapply(plate, as.character)
 
-        plate["F", "9"] <- "C-FLAP"
-        plate["F", "10"] <- "C-"
+        original_f9 <- plate["F", "9"]
+
+        plate["F", "10"] <- "C-FLAP"
+        plate["F", "11"] <- "C-"
 
         plate[7, kif_col] <- "KIF1C"
         plate[7, dync_col] <- "DYNC1H1"
@@ -537,9 +539,9 @@ fish_layout_config <- function() {
         }
 
         if (idx %% 2 == 0) {
-          mol_value <- plate[6, "9"]
+          plate["F", "9"] <- paste0("C-", length(mol96) + 1L)
+          mol_value <- original_f9
           mol96 <- c(mol96, mol_value)
-          plate[6, "9"] <- paste0("C-", length(mol96))
         }
 
         plates_final[[idx]] <- plate
@@ -585,21 +587,19 @@ write_plate_workbook <- function(plates,
 
   for (idx in seq_along(plates)) {
     plate <- plates[[idx]]
+    original_object <- plate
     if (is.null(plate)) {
       next
     }
 
-    if (is.vector(plate) && !is.list(plate)) {
-      column_name <- plate_names[idx]
-      if (is.null(column_name) || !nzchar(column_name)) {
-        column_name <- "value"
-      }
+    original_is_vector <- is.null(dim(original_object)) && !is.list(original_object)
+
+    if (original_is_vector) {
       plate <- data.frame(
-        value = unname(plate),
+        x = unname(original_object),
         stringsAsFactors = FALSE,
         check.names = FALSE
       )
-      colnames(plate) <- column_name
     }
 
     if (is.matrix(plate)) {
@@ -616,6 +616,9 @@ write_plate_workbook <- function(plates,
       sheet_namer(plate, idx)
     } else {
       candidate <- plate_names[idx]
+      if (original_is_vector) {
+        candidate <- NULL
+      }
       if (!is.null(candidate) && nzchar(candidate)){
         candidate
       } else {
