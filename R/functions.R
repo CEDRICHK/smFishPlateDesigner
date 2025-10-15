@@ -583,6 +583,8 @@ write_plate_workbook <- function(plates,
     fs::file_delete(path)
   }
 
+  wb <- openxlsx::createWorkbook()
+
   sheet_counter <- 0L
   plate_names <- names(plates)
 
@@ -631,17 +633,15 @@ write_plate_workbook <- function(plates,
       sheet_name <- paste0(prefix, sheet_counter)
     }
 
-    write.xlsx(
-      plate,
-      file = path,
-      sheetName = sheet_name,
-      append = sheet_counter > 1L
-    )
+    openxlsx::addWorksheet(wb, sheet_name)
+    openxlsx::writeData(wb, sheet = sheet_name, x = plate, rowNames = TRUE)
   }
 
   if (sheet_counter == 0L) {
     stop("No tabular data found to export.", call. = FALSE)
   }
+
+  openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
 
   path
 }
