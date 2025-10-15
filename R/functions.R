@@ -527,6 +527,7 @@ fish_layout_config <- function() {
 
         plate["F", "10"] <- "C-FLAP"
         plate["F", "11"] <- "C-"
+        plate["F", "12"] <- NA_character_
 
         plate[7, kif_col] <- "KIF1C"
         plate[7, dync_col] <- "DYNC1H1"
