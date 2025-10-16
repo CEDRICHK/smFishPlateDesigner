@@ -1,4 +1,5 @@
 package: smFishPlateDesigner
+url: https://cedrichk.github.io/smFishPlateDesigner
 
 home:
   title: "smFishPlateDesigner"
@@ -14,12 +15,14 @@ reference:
       - starts_with("get")
       - starts_with("process")
       - write_plate_workbook
+      - ResultWithComplementSeq_final_file
 
 articles:
   - title: "Vignettes"
     contents:
-      - smFishPlateDesigner
+      - smFishPlateDesign
 
 template:
+  bootstrap: 5
   params:
     bootswatch: cosmo
