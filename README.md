@@ -48,6 +48,17 @@ To streamline the analysis process, `smFishPlateDesigner` is designed to work wi
    ```
 This setup ensures that your HT-smFish experiments' analysis is reproducible and efficiently managed.
 
+### Manual Exports
+
+All Excel exports are handled by the helper `write_plate_workbook()`, which relies on the lightweight `openxlsx` package (no Java runtime needed). You can use it directly when exploring results interactively:
+
+```r
+plates <- getPCR("path/to/your/excel_file.xlsx")
+write_plate_workbook(plates, "output/pcr_plate_layouts.xlsx")
+```
+
+Every element in the list becomes a separate worksheet, and row labels (A–H) are kept as the first column so the exported workbook mirrors laboratory plate layouts.
+
 ### Further Information
 
 For a detailed guide on using `smFishPlateDesigner`, including explanations of each target in the workflow, refer to the package vignette provided in the `man` folder or check the [targets documentation](https://docs.ropensci.org/targets/).
@@ -61,4 +72,3 @@ You can find these documents in the form of HTML files in the `doc` folder of th
 ## Issues and Contributions
 
 Feel free to report any issues or feature requests on the [GitHub repository](https://github.com/cedrichk/smFishPlateDesigner). Contributions to the package are also welcome.
-
