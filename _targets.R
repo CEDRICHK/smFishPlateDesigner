@@ -6,7 +6,7 @@ options(smFishPlateDesigner_excel_path = "./data/Probes_final_Oligopool11_with_s
 # Source the functions and targets definitions
 # source("R/functions.R")
 
-tar_option_set(packages = c("tidyverse", "magrittr", "openxlsx", "readxl", "smFishPlateDesigner"))
+tar_option_set(packages = c("dplyr", "tidyr", "openxlsx", "readxl", "smFishPlateDesigner"))
 
 user_excel_path <- getOption("smFishPlateDesigner_excel_path", default = NULL)
 

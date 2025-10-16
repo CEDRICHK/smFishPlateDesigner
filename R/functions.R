@@ -774,8 +774,10 @@ getPCR2 <- function(pcr_data) {
   # Annotate each plate with "C-" and the plate number at position H12
   l_mat_annotated <- lapply(seq_along(pcr_data), function(x) {
     plate <- pcr_data[[x]]
-    plate <- plate %>%
-      dplyr::mutate(dplyr::across(dplyr::everything(), as.character))
+    plate <- dplyr::mutate(
+      plate,
+      dplyr::across(dplyr::everything(), as.character)
+    )
     plate[8, 12] <- paste("C-", x, sep = "")
     plate
   })

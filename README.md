@@ -4,10 +4,10 @@ The `smFishPlateDesigner` package offers a suite of tools for processing and ana
 
 ## Prerequisites
 
-Before installing `smFishPlateDesigner`, ensure you have installed the following R packages: `tidyverse`, `magrittr`, `openxlsx`, `readxl` and `targets`. You can install these packages using the following commands:
+Before installing `smFishPlateDesigner`, ensure you have installed the following R packages: `dplyr`, `tidyr`, `openxlsx`, `readxl` and `targets`. You can install these packages using the following commands:
 
 ```r
-install.packages(c("tidyverse", "magrittr", "openxlsx", "readxl", "targets"))
+install.packages(c("dplyr", "tidyr", "openxlsx", "readxl", "targets"))
 ```
 
 ## Installation from GitHub and the Tarball

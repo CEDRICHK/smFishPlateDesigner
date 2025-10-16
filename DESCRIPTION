@@ -12,8 +12,8 @@ License: GPL-3
 Encoding: UTF-8
 LazyData: true
 Imports:
-    tidyverse,
-    magrittr,
+    dplyr,
+    tidyr,
     readxl,
     targets,
     fs,
