@@ -15,7 +15,7 @@ reference:
       - starts_with("get")
       - starts_with("process")
       - write_plate_workbook
-      - ResultWithComplementSeq_final_file
+      - probes_final_columns
 
 articles:
   - title: "Vignettes"
