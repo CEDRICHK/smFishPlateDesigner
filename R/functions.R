@@ -482,17 +482,39 @@ fish_layout_config <- function() {
   final_cols <- as.character(seq_len(12))
   final_rows <- LETTERS[1:8]
 
+  apply_base_controls <- function(plate, plate_index) {
+    plate[5, 9] <- "C-FLAP"
+    plate[5, 10] <- "C-"
+    plate
+  }
+
+  apply_extended_controls <- function(plate, idx, kif_col, dync_col) {
+    original_f9 <- plate["F", "9"]
+
+    plate["F", "10"] <- "C-FLAP"
+    plate["F", "11"] <- "C-"
+    plate["F", "12"] <- NA_character_
+
+    plate[7, kif_col] <- "KIF1C"
+    plate[7, dync_col] <- "DYNC1H1"
+
+    if (idx %% 2 == 0) {
+      plate["F", "9"] <- paste0("C-", idx / 2)
+    }
+
+    list(
+      plate = plate,
+      mol96_entry = original_f9
+    )
+  }
+
   list(
     wells_per_plate = 48,
     nrow = 5,
     ncol = 10,
     row_labels = LETTERS[2:6],
     col_labels = as.character(2:11),
-    decorate = function(plate, idx) {
-      plate[5, 9] <- "C-FLAP"
-      plate[5, 10] <- "C-"
-      plate
-    },
+    decorate = function(plate, idx) apply_base_controls(plate, idx),
     postprocess = function(plates, chunks, config) {
       if (!length(plates)) {
         return(list())
@@ -523,14 +545,8 @@ fish_layout_config <- function() {
         rownames(plate) <- final_rows
         plate[] <- lapply(plate, as.character)
 
-        original_f9 <- plate["F", "9"]
-
-        plate["F", "10"] <- "C-FLAP"
-        plate["F", "11"] <- "C-"
-        plate["F", "12"] <- NA_character_
-
-        plate[7, kif_col] <- "KIF1C"
-        plate[7, dync_col] <- "DYNC1H1"
+        decorated <- apply_extended_controls(plate, idx, kif_col, dync_col)
+        plate <- decorated$plate
 
         kif_col <- kif_col + 1L
         dync_col <- dync_col + 1L
@@ -540,9 +556,7 @@ fish_layout_config <- function() {
         }
 
         if (idx %% 2 == 0) {
-          plate["F", "9"] <- paste0("C-", length(mol96) + 1L)
-          mol_value <- original_f9
-          mol96 <- c(mol96, mol_value)
+          mol96 <- c(mol96, decorated$mol96_entry)
         }
 
         plates_final[[idx]] <- plate
