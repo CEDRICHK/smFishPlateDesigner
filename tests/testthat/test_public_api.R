@@ -71,6 +71,15 @@ test_that("processFishData assembles annotated plates with controls", {
   expect_length(result$mol96, floor(length(plates) / 2))
 })
 
+test_that("processFishData errors on odd number of plates", {
+  fake_data <- make_fake_dataset(48)
+
+  expect_error(
+    with_mocked_excel(fake_data, function(path) processFishData(path)),
+    "even number of plates"
+  )
+})
+
 test_that("processFishDataWithoutPrimers mirrors annotated layout", {
   fake_data <- make_fake_dataset(96)
 

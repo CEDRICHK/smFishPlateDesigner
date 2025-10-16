@@ -527,6 +527,14 @@ fish_layout_config <- function() {
       if (length(chunks) != n_plates) {
         stop("Internal inconsistency: number of barcode chunks does not match plates.", call. = FALSE)
       }
+      if (n_plates %% 2L != 0L) {
+        stop(
+          "Fish layout expects an even number of plates; received ",
+          n_plates,
+          ".",
+          call. = FALSE
+        )
+      }
 
       kif_col <- 2L
       dync_col <- 3L
