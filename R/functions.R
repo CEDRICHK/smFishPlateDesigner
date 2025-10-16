@@ -394,6 +394,12 @@ compose_plate_decorator <- function(decorate = NULL, controls = NULL) {
         if (length(pieces) != 2) {
           stop("Invalid control coordinate: ", coord, call. = FALSE)
         }
+        if (!(pieces[1] %in% rownames(plate))) {
+          stop("Control row '", pieces[1], "' not found in plate.", call. = FALSE)
+        }
+        if (!(pieces[2] %in% colnames(plate))) {
+          stop("Control column '", pieces[2], "' not found in plate.", call. = FALSE)
+        }
         plate[pieces[1], pieces[2]] <- fixed_controls[[coord]]
       }
     }
