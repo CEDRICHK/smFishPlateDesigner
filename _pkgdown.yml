@@ -1,0 +1,25 @@
+package: smFishPlateDesigner
+
+home:
+  title: "smFishPlateDesigner"
+  description: "Workflow utilities for HT-smFISH plate design"
+
+navbar:
+  structure:
+    left: [reference, articles]
+
+reference:
+  - title: "Reference"
+    contents:
+      - starts_with("get")
+      - starts_with("process")
+      - write_plate_workbook
+
+articles:
+  - title: "Vignettes"
+    contents:
+      - smFishPlateDesigner
+
+template:
+  params:
+    bootswatch: cosmo
