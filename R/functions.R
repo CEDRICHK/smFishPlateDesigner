@@ -426,8 +426,12 @@ dosage_tiv_layout_config <- function() {
     row_labels = LETTERS[1:8],
     col_labels = as.character(seq_len(12)),
     postprocess = function(plates, chunks, config) {
-      if (!length(plates)) {
-        return(list())
+      n_plates <- length(plates)
+      if (n_plates == 0L) {
+        stop("No dosage TIV plates were generated.", call. = FALSE)
+      }
+      if (length(chunks) != n_plates) {
+        stop("Internal inconsistency: number of barcode chunks does not match plates.", call. = FALSE)
       }
 
       last_col <- config$col_labels[config$ncol]
@@ -516,8 +520,12 @@ fish_layout_config <- function() {
     col_labels = as.character(2:11),
     decorate = function(plate, idx) apply_base_controls(plate, idx),
     postprocess = function(plates, chunks, config) {
-      if (!length(plates)) {
-        return(list())
+      n_plates <- length(plates)
+      if (n_plates == 0L) {
+        stop("No fish plates were generated.", call. = FALSE)
+      }
+      if (length(chunks) != n_plates) {
+        stop("Internal inconsistency: number of barcode chunks does not match plates.", call. = FALSE)
       }
 
       kif_col <- 2L
