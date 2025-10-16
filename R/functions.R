@@ -583,58 +583,75 @@ write_plate_workbook <- function(plates,
     fs::file_delete(path)
   }
 
-  wb <- openxlsx::createWorkbook()
-
   sheet_counter <- 0L
   plate_names <- names(plates)
+  wb <- openxlsx::createWorkbook()
 
   for (idx in seq_along(plates)) {
-    plate <- plates[[idx]]
-    original_object <- plate
-    if (is.null(plate)) {
+    plate_object <- plates[[idx]]
+    if (is.null(plate_object)) {
       next
     }
 
-    original_is_vector <- is.null(dim(original_object)) && !is.list(original_object)
+    original_is_vector <- is.null(dim(plate_object)) && !is.list(plate_object)
+    original_has_rownames <- !is.null(rownames(plate_object))
 
     if (original_is_vector) {
-      plate <- data.frame(
-        x = unname(original_object),
+      plate_df <- data.frame(
+        value = unname(plate_object),
         stringsAsFactors = FALSE,
         check.names = FALSE
       )
+      original_has_rownames <- FALSE
+    } else if (is.matrix(plate_object)) {
+      plate_df <- as.data.frame(plate_object, stringsAsFactors = FALSE, check.names = FALSE)
+    } else {
+      plate_df <- as.data.frame(plate_object, stringsAsFactors = FALSE, check.names = FALSE)
     }
 
-    if (is.matrix(plate)) {
-      plate <- as.data.frame(plate, stringsAsFactors = FALSE, check.names = FALSE)
-    }
-
-    if (!is.data.frame(plate)) {
+    if (!is.data.frame(plate_df)) {
       next
     }
 
+    if (original_has_rownames) {
+      row_col <- rownames(plate_df)
+      plate_df <- cbind(row_col, plate_df)
+      colnames(plate_df)[1] <- ""
+    }
+
     sheet_counter <- sheet_counter + 1L
+    default_name <- paste0(prefix, sheet_counter)
 
     sheet_name <- if (!is.null(sheet_namer)) {
-      sheet_namer(plate, idx)
+      sheet_namer(plate_df, idx)
     } else {
       candidate <- plate_names[idx]
       if (original_is_vector) {
-        candidate <- NULL
+        if (!is.null(candidate) && nzchar(candidate)) {
+          candidate <- candidate
+        } else {
+          candidate <- NULL
+        }
       }
       if (!is.null(candidate) && nzchar(candidate)){
         candidate
       } else {
-        paste0(prefix, sheet_counter)
+        default_name
       }
     }
 
     if (is.null(sheet_name) || !nzchar(sheet_name)) {
-      sheet_name <- paste0(prefix, sheet_counter)
+      sheet_name <- default_name
     }
 
     openxlsx::addWorksheet(wb, sheet_name)
-    openxlsx::writeData(wb, sheet = sheet_name, x = plate, rowNames = TRUE)
+    openxlsx::writeData(
+      wb,
+      sheet = sheet_name,
+      x = plate_df,
+      colNames = TRUE,
+      rowNames = FALSE
+    )
   }
 
   if (sheet_counter == 0L) {
