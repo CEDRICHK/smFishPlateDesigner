@@ -1,8 +1,8 @@
 ---
-title: "smFishPlateDesign"
+title: "smFishPlateDesigner"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{smFishPlateDesign}
+  %\VignetteIndexEntry{smFishPlateDesigner}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
