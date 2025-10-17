@@ -33,9 +33,3 @@ jobs:
         run: |
           Rscript -e "devtools::install(local = TRUE)"
           Rscript -e "pkgdown::build_site(new_process = FALSE, install = FALSE)"
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs
