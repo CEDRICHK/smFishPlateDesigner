@@ -1,7 +1,7 @@
 Package: smFishPlateDesigner
 Type: Package
 Title: Plate Design and Layout for High-Throughput smFish
-Version: 0.1.0
+Version: 0.1.1
 Author: Cédric HASSEN-KHODJA
 Maintainer: Cédric HASSEN-KHODJA <cedric.hassen-khodja@mri.cnrs.fr>
 Description: This package provides tools for designing and arranging plate layouts 
